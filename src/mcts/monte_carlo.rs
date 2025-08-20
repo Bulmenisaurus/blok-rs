@@ -1,20 +1,20 @@
 use std::collections::HashMap;
 
 use crate::board::BoardState;
-use crate::mcts::MonteCarloNodeState;
+use crate::mcts::MonteCarloNode;
 
-pub struct MonteCarloState {
+pub struct MonteCarlo {
     game: BoardState,
-    UCB1ExploreParam: f64,
-    nodes: HashMap<String, MonteCarloNodeState>,
+    ucb1_explore_param: f64,
+    nodes: HashMap<String, MonteCarloNode>,
 }
 
-impl MonteCarloState {
+impl MonteCarlo {
     pub fn new(game: BoardState) -> Self {
         Self {
             game,
             //TODO: what actually was it
-            UCB1ExploreParam: 2.,
+            ucb1_explore_param: 2.,
             nodes: HashMap::new(),
         }
     }

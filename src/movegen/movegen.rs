@@ -1,9 +1,7 @@
 use std::collections::HashSet;
 
-use crate::board::{
-    BoardState, Coord, CoordOffset, Player, StartPosition, get_start_position_coord,
-};
-use serde::Deserialize;
+use crate::board::{BoardState, Coord, CoordOffset, Player, get_start_position_coord};
+
 use serde_json;
 
 use once_cell::sync::Lazy;
@@ -66,16 +64,6 @@ pub struct Move {
 }
 
 impl Move {
-    pub fn new(orientation: u8, y: u8, x: u8, movetype: u8, player: u8) -> Move {
-        Move {
-            orientation,
-            y,
-            x,
-            movetype,
-            player,
-        }
-    }
-
     pub fn pack(self) -> u32 {
         (self.orientation as u32)
             | ((self.y as u32) << 3)
@@ -185,7 +173,7 @@ pub fn is_move_legal(board: &BoardState, m: u32) -> bool {
         if location.y as usize + bb_y == 0 || location.y as usize + bb_y - 1 >= my_bitboard.len() {
             continue;
         }
-        let cached_halo = halo_data[bb_y as usize] << location.x;
+        let cached_halo = halo_data[bb_y] << location.x;
         // shift by 1 to match the halo data
         let game_row = my_bitboard[location.y as usize + bb_y - 1] << 1;
         if (cached_halo & game_row) != 0 {
@@ -307,7 +295,7 @@ pub fn get_legal_moves_from(from: Coord, movetype: u8, board: &BoardState) -> Ve
     let orientation_data = &ORIENTATION_DATA[movetype as usize];
 
     for i in 0..orientation_data.len() {
-        let corners = &CORNERS_DATA[movetype as usize][i as usize];
+        let corners = &CORNERS_DATA[movetype as usize][i];
         for corner in corners {
             if from.x < corner.x || from.y < corner.y {
                 continue;

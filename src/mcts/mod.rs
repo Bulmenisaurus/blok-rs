@@ -1,5 +1,5 @@
-mod MonteCarlo;
-mod MonteCarloNode;
+mod monte_carlo;
+mod monte_carlo_node;
 
-pub use MonteCarlo::MonteCarloState;
-pub use MonteCarloNode::MonteCarloNodeState;
+pub use monte_carlo::MonteCarlo;
+pub use monte_carlo_node::MonteCarloNode;
