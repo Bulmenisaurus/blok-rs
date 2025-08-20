@@ -113,11 +113,27 @@ pub fn is_move_legal(board: &BoardState, m: u32) -> bool {
     let movetype = Move::get_movetype(m);
     let orientation = Move::get_orientation(m);
 
+    // check if it is outside of the board
+    let (bx, by) = SHORT_BOUNDING_BOX_DATA[movetype as usize][orientation as usize];
+    let bottom_right = Coord {
+        x: location.x + bx,
+        y: location.y + by,
+    };
+
+    if !bottom_right.in_bounds() || !location.in_bounds() {
+        return false;
+    }
+
     let my_remaining = if player == 0 {
         board.player_a_remaining
     } else {
         board.player_b_remaining
     };
+
+    // check if this move has already been placed
+    if my_remaining & (1u32 << movetype) == 0 {
+        return false;
+    }
 
     let my_bitboard = if player == 0 {
         board.player_a_bit_board
@@ -131,40 +147,7 @@ pub fn is_move_legal(board: &BoardState, m: u32) -> bool {
         board.player_a_bit_board
     };
 
-    // check if this move has already been placed
-    if my_remaining & (1u32 << movetype) == 0 {
-        return false;
-    }
-
-    if movetype == 16 && orientation == 1 {
-        println!(
-            "VAL weird move: movetype: {}, orientation: {}",
-            movetype, orientation
-        );
-    }
-
-    // check if it is outside of the board
-    let (bx, by) = SHORT_BOUNDING_BOX_DATA[movetype as usize][orientation as usize];
-    let bottom_right = Coord {
-        x: location.x + bx,
-        y: location.y + by,
-    };
-
-    if !bottom_right.in_bounds() || !location.in_bounds() {
-        return false;
-    }
-
-    // check if there's an intersection with opponent
     let piece_bitboard = &ORIENTATIONS_BITBOARD_DATA[movetype as usize][orientation as usize];
-
-    for bb_y in 0..piece_bitboard.len() {
-        let bitboard_row = piece_bitboard[bb_y] << location.x;
-        let game_row = their_bitboard[location.y as usize + bb_y];
-
-        if bitboard_row & game_row != 0 {
-            return false;
-        }
-    }
 
     // check for intersection or adjacency with my pieces
     let halo_data = &ORIENTATIONS_BITBOARD_HALO_DATA[movetype as usize][orientation as usize];
@@ -177,6 +160,17 @@ pub fn is_move_legal(board: &BoardState, m: u32) -> bool {
         // shift by 1 to match the halo data
         let game_row = my_bitboard[location.y as usize + bb_y - 1] << 1;
         if (cached_halo & game_row) != 0 {
+            return false;
+        }
+    }
+
+    // check if there's an intersection with opponent
+
+    for bb_y in 0..piece_bitboard.len() {
+        let bitboard_row = piece_bitboard[bb_y] << location.x;
+        let game_row = their_bitboard[location.y as usize + bb_y];
+
+        if bitboard_row & game_row != 0 {
             return false;
         }
     }
