@@ -1,9 +1,8 @@
-use serde::Deserialize;
 use std::collections::HashMap;
 
 use crate::movegen::{
-    CORNER_ATTACHERS_DATA, CORNERS_DATA, Move, NULL_MOVE, ORIENTATION_DATA,
-    ORIENTATIONS_BITBOARD_DATA, get_legal_moves_from, is_move_legal,
+    CORNER_ATTACHERS_DATA, CORNERS_DATA, Move, NULL_MOVE, ORIENTATIONS_BITBOARD_DATA, PIECE_DATA,
+    get_legal_moves_from, is_move_legal,
 };
 
 #[repr(u8)]
@@ -42,23 +41,23 @@ impl Coord {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum StartPosition {
-    middle,
-    corner,
+    Middle,
+    Corner,
     middleBlokee,
 }
 
 pub fn get_start_position_coord(start_position: StartPosition) -> (Coord, Coord) {
     match start_position {
-        StartPosition::middle => (Coord { x: 4, y: 4 }, Coord { x: 9, y: 9 }),
-        StartPosition::corner => (Coord { x: 0, y: 0 }, Coord { x: 13, y: 13 }),
+        StartPosition::Middle => (Coord { x: 4, y: 4 }, Coord { x: 9, y: 9 }),
+        StartPosition::Corner => (Coord { x: 0, y: 0 }, Coord { x: 13, y: 13 }),
         StartPosition::middleBlokee => (Coord { x: 6, y: 7 }, Coord { x: 7, y: 6 }),
     }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Score {
-    playerA: u32,
-    playerB: u32,
+    player_a: u32,
+    player_b: u32,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -77,21 +76,21 @@ pub struct BoardState {
     pub player: Player,
 
     // Remaining pieces for each player, as a bitmask
-    pub playerARemaining: u32,
-    pub playerBRemaining: u32,
+    pub player_a_remaining: u32,
+    pub player_b_remaining: u32,
 
     // Bitboards for tiles placed
-    pub playerABitBoard: [u32; 14],
-    pub playerBBitBoard: [u32; 14],
+    pub player_a_bit_board: [u32; 14],
+    pub player_b_bit_board: [u32; 14],
 
-    pub startPosition: StartPosition,
+    pub start_position: StartPosition,
 
     // How many null moves have been made (>= 2 in a row is game end)
-    pub nullMoveCounter: u8,
+    pub null_move_counter: u8,
 
     // Cached corner moves
-    pub playerACornerMoves: HashMap<Coord, Vec<u32>>,
-    pub playerBCornerMoves: HashMap<Coord, Vec<u32>>,
+    pub player_a_corner_moves: HashMap<Coord, Vec<u32>>,
+    pub player_b_corner_moves: HashMap<Coord, Vec<u32>>,
 }
 
 impl BoardState {
@@ -99,39 +98,39 @@ impl BoardState {
         Self {
             pieces: Vec::new(),
             player: Player::White,
-            playerARemaining: 0x1fffff,
-            playerBRemaining: 0x1fffff,
-            playerABitBoard: [0; 14],
-            playerBBitBoard: [0; 14],
-            nullMoveCounter: 0,
-            startPosition: start_position,
-            playerACornerMoves: HashMap::new(),
-            playerBCornerMoves: HashMap::new(),
+            player_a_remaining: 0x1fffff,
+            player_b_remaining: 0x1fffff,
+            player_a_bit_board: [0; 14],
+            player_b_bit_board: [0; 14],
+            null_move_counter: 0,
+            start_position,
+            player_a_corner_moves: HashMap::new(),
+            player_b_corner_moves: HashMap::new(),
         }
     }
 
     pub fn is_game_over(&self) -> bool {
-        self.nullMoveCounter >= 2
+        self.null_move_counter >= 2
     }
 
     pub fn score(&self) -> Score {
-        let playerAScore: usize = self
+        let player_a_score: usize = self
             .pieces
             .iter()
             .filter(|m| Move::get_player(**m) == 0)
-            .map(|m| ORIENTATION_DATA[Move::get_movetype(*m) as usize][0].len())
+            .map(|m| PIECE_DATA[Move::get_movetype(*m) as usize].len())
             .sum();
 
-        let playerBScore: usize = self
+        let player_b_score: usize = self
             .pieces
             .iter()
             .filter(|m| Move::get_player(**m) == 1)
-            .map(|m| ORIENTATION_DATA[Move::get_movetype(*m) as usize][0].len())
+            .map(|m| PIECE_DATA[Move::get_movetype(*m) as usize].len())
             .sum();
 
         Score {
-            playerA: playerAScore as u32,
-            playerB: playerBScore as u32,
+            player_a: player_a_score as u32,
+            player_b: player_b_score as u32,
         }
     }
 
@@ -141,9 +140,9 @@ impl BoardState {
         }
 
         let score = self.score();
-        if score.playerA > score.playerB {
+        if score.player_a > score.player_b {
             return GameResult::PlayerAWon;
-        } else if score.playerA < score.playerB {
+        } else if score.player_a < score.player_b {
             return GameResult::PlayerBWon;
         } else {
             return GameResult::Draw;
@@ -151,16 +150,16 @@ impl BoardState {
     }
 
     // change states, incrementally update move cache
-    pub fn doMove(&mut self, boardMove: u32) {
-        if boardMove == NULL_MOVE {
-            self.nullMoveCounter += 1;
-            self.skipTurn();
+    pub fn do_move(&mut self, board_move: u32) {
+        if board_move == NULL_MOVE {
+            self.null_move_counter += 1;
+            self.skip_turn();
 
             // Take ownership of the cached moves, filter them, then reassign
             let cached_moves = if self.player == Player::White {
-                std::mem::take(&mut self.playerACornerMoves)
+                std::mem::take(&mut self.player_a_corner_moves)
             } else {
-                std::mem::take(&mut self.playerBCornerMoves)
+                std::mem::take(&mut self.player_b_corner_moves)
             };
 
             let filtered_moves: HashMap<Coord, Vec<u32>> = cached_moves
@@ -175,29 +174,29 @@ impl BoardState {
                 .collect();
 
             if self.player == Player::White {
-                self.playerACornerMoves = filtered_moves;
+                self.player_a_corner_moves = filtered_moves;
             } else {
-                self.playerBCornerMoves = filtered_moves;
+                self.player_b_corner_moves = filtered_moves;
             }
 
             return;
         }
 
-        self.nullMoveCounter = 0;
-        self.pieces.push(boardMove);
-        let mov = Move::unpack(boardMove);
+        self.null_move_counter = 0;
+        self.pieces.push(board_move);
+        let mov = Move::unpack(board_move);
 
         // remove this move from the pool
         if mov.player == (Player::White as u8) {
-            self.playerARemaining &= !(1 << mov.movetype);
+            self.player_a_remaining &= !(1 << mov.movetype);
         } else {
-            self.playerBRemaining &= !(1 << mov.movetype);
+            self.player_b_remaining &= !(1 << mov.movetype);
         }
 
         let my_bitboard = if mov.player == (Player::White as u8) {
-            &mut self.playerABitBoard
+            &mut self.player_a_bit_board
         } else {
-            &mut self.playerBBitBoard
+            &mut self.player_b_bit_board
         };
 
         // update bitboards
@@ -221,14 +220,14 @@ impl BoardState {
             };
 
             // delete all the moves for this corner
-            self.playerACornerMoves.remove(&absolute_corner);
-            self.playerBCornerMoves.remove(&absolute_corner);
+            self.player_a_corner_moves.remove(&absolute_corner);
+            self.player_b_corner_moves.remove(&absolute_corner);
         }
 
         let my_remaining_pieces = if self.player == Player::White {
-            self.playerARemaining
+            self.player_a_remaining
         } else {
-            self.playerBRemaining
+            self.player_b_remaining
         };
 
         let corner_attachers =
@@ -250,11 +249,11 @@ impl BoardState {
             }
 
             if self.player == Player::White {
-                if self.playerACornerMoves.contains_key(&absolute_corner) {
+                if self.player_a_corner_moves.contains_key(&absolute_corner) {
                     continue;
                 }
             } else {
-                if self.playerBCornerMoves.contains_key(&absolute_corner) {
+                if self.player_b_corner_moves.contains_key(&absolute_corner) {
                     continue;
                 }
             }
@@ -267,32 +266,33 @@ impl BoardState {
                 }
 
                 let movetype = unplaced_piece as u8;
-                let orientation = mov.orientation;
 
                 legal_moves.extend(get_legal_moves_from(absolute_corner, movetype, self));
             }
 
             if self.player == Player::White {
-                self.playerACornerMoves.insert(absolute_corner, legal_moves);
+                self.player_a_corner_moves
+                    .insert(absolute_corner, legal_moves);
             } else {
-                self.playerBCornerMoves.insert(absolute_corner, legal_moves);
+                self.player_b_corner_moves
+                    .insert(absolute_corner, legal_moves);
             }
         }
 
-        self.skipTurn();
+        self.skip_turn();
 
         // filter opponent's moves (now the player to move)
         let opponent_cached_moves: Vec<Coord> = if self.player == Player::White {
-            self.playerACornerMoves.keys().cloned().collect()
+            self.player_a_corner_moves.keys().cloned().collect()
         } else {
-            self.playerBCornerMoves.keys().cloned().collect()
+            self.player_b_corner_moves.keys().cloned().collect()
         };
 
         for coord in opponent_cached_moves {
             let old_moves = if self.player == Player::White {
-                self.playerACornerMoves.get_mut(&coord).unwrap().clone()
+                self.player_a_corner_moves.get_mut(&coord).unwrap().clone()
             } else {
-                self.playerBCornerMoves.get_mut(&coord).unwrap().clone()
+                self.player_b_corner_moves.get_mut(&coord).unwrap().clone()
             };
 
             let new_moves: Vec<u32> = old_moves
@@ -301,14 +301,14 @@ impl BoardState {
                 .collect();
 
             if self.player == Player::White {
-                self.playerACornerMoves.insert(coord, new_moves);
+                self.player_a_corner_moves.insert(coord, new_moves);
             } else {
-                self.playerBCornerMoves.insert(coord, new_moves);
+                self.player_b_corner_moves.insert(coord, new_moves);
             }
         }
     }
 
-    pub fn skipTurn(&mut self) {
+    pub fn skip_turn(&mut self) {
         self.player = self.player.other();
     }
 
@@ -320,6 +320,6 @@ impl BoardState {
             .collect::<Vec<_>>()
             .join("/");
 
-        format!("{}+{}", moves, self.nullMoveCounter)
+        format!("{}+{}", moves, self.null_move_counter)
     }
 }

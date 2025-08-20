@@ -126,21 +126,21 @@ pub fn is_move_legal(board: &BoardState, m: u32) -> bool {
     let orientation = Move::get_orientation(m);
 
     let my_remaining = if player == 0 {
-        board.playerARemaining
+        board.player_a_remaining
     } else {
-        board.playerBRemaining
+        board.player_b_remaining
     };
 
     let my_bitboard = if player == 0 {
-        board.playerABitBoard
+        board.player_a_bit_board
     } else {
-        board.playerBBitBoard
+        board.player_b_bit_board
     };
 
     let their_bitboard = if player == 0 {
-        board.playerBBitBoard
+        board.player_b_bit_board
     } else {
-        board.playerABitBoard
+        board.player_a_bit_board
     };
 
     // check if this move has already been placed
@@ -200,13 +200,13 @@ pub fn is_move_legal(board: &BoardState, m: u32) -> bool {
 
 pub fn generate_first_moves(board: &BoardState) -> Vec<u32> {
     // Get the starting position for the current player
-    let (start_a, start_b) = get_start_position_coord(board.startPosition);
+    let (start_a, start_b) = get_start_position_coord(board.start_position);
     let start_pos = match board.player {
         Player::White => start_a,
         Player::Black => start_b,
     };
 
-    if board.nullMoveCounter != 0 {
+    if board.null_move_counter != 0 {
         panic!("NMC not 0 at the beginning of the game");
     }
 
@@ -276,9 +276,9 @@ pub fn generate_moves(board: &BoardState) -> Vec<u32> {
     }
 
     let my_remaining = if board.player == Player::White {
-        board.playerARemaining
+        board.player_a_remaining
     } else {
-        board.playerBRemaining
+        board.player_b_remaining
     };
 
     if my_remaining == 0x1fffff {
@@ -287,9 +287,9 @@ pub fn generate_moves(board: &BoardState) -> Vec<u32> {
 
     // otherwise, use the cached moves
     let my_corner_moves = if board.player == Player::White {
-        &board.playerACornerMoves
+        &board.player_a_corner_moves
     } else {
-        &board.playerBCornerMoves
+        &board.player_b_corner_moves
     };
 
     let unique_moves: HashSet<u32> = my_corner_moves.values().flatten().cloned().collect();

@@ -1,7 +1,6 @@
 mod movegen;
 
 pub use movegen::{
-    CORNER_ATTACHERS_DATA, CORNERS_DATA, Move, NULL_MOVE, ORIENTATION_DATA,
-    ORIENTATIONS_BITBOARD_DATA, ORIENTATIONS_BITBOARD_HALO_DATA, PIECE_DATA, RR_DATA,
-    SHORT_BOUNDING_BOX_DATA, generate_moves, get_legal_moves_from, is_move_legal,
+    CORNER_ATTACHERS_DATA, CORNERS_DATA, Move, NULL_MOVE, ORIENTATIONS_BITBOARD_DATA, PIECE_DATA,
+    generate_moves, get_legal_moves_from, is_move_legal,
 };
