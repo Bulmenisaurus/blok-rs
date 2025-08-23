@@ -85,33 +85,32 @@ impl MonteCarloNode {
     }
 
     pub fn all_plays(&self) -> Vec<u32> {
-        return self.children.iter().map(|k| k.1.play).collect();
+        self.children.iter().map(|k| k.1.play).collect()
     }
 
     pub fn unexpanded_plays(&self) -> Vec<u32> {
-        return self
-            .children
+        self.children
             .iter()
             .filter_map(|k| {
                 let node = k.1.node;
                 if node.is_none() { Some(*k.0) } else { None }
             })
-            .collect();
+            .collect()
     }
 
     pub fn is_fully_expanded(&self) -> bool {
-        return self.children.iter().all(|k| k.1.node.is_some());
+        self.children.iter().all(|k| k.1.node.is_some())
     }
 
     pub fn is_leaf(&self) -> bool {
-        return self.children.len() == 0;
+        self.children.is_empty()
     }
 
     pub fn get_ucb1(&self, bias_param: f64, all_nodes: &Vec<MonteCarloNode>) -> f64 {
         let parent = self.parent_idx.expect("UCB1 not defined for root node");
         let parent = &all_nodes[parent];
 
-        return self.n_wins as f64 / self.n_plays as f64
-            + f64::sqrt(bias_param * f64::ln(parent.n_plays as f64) / self.n_plays as f64);
+        self.n_wins as f64 / self.n_plays as f64
+            + f64::sqrt(bias_param * f64::ln(parent.n_plays as f64) / self.n_plays as f64)
     }
 }

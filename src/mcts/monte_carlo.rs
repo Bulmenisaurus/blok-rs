@@ -1,8 +1,5 @@
-use std::collections::HashMap;
-
 use rand::prelude::IndexedRandom;
 use rand::rng;
-use rand::seq::SliceRandom;
 
 use crate::board::{BoardState, GameResult, Player};
 use crate::mcts::MonteCarloNode;
@@ -30,14 +27,14 @@ impl MonteCarlo {
 
     pub fn run_search(&mut self, state: BoardState) {
         self.make_root_node(state);
-        let iterations = 15_000;
+        let iterations = 1_000;
 
         for _ in 0..iterations {
             let node_idx = self.select();
             let node = &self.nodes[node_idx];
             let winner = node.state.game_result();
 
-            if node.is_leaf() == false && winner == GameResult::InProgress {
+            if !node.is_leaf() && winner == GameResult::InProgress {
                 let new_node_idx = self.expand(node_idx);
                 let winner = self.simulate(new_node_idx);
 
@@ -138,7 +135,8 @@ impl MonteCarlo {
             .unwrap();
 
         self.nodes.push(child_node);
-        return new_idx;
+
+        new_idx
     }
 
     /// Phase 3, Simulation: Play game to terminal state, return winner

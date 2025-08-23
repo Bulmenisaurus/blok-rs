@@ -167,7 +167,7 @@ impl BoardState {
                 .map(|(coord, moves)| {
                     let legal_moves: Vec<u32> = moves
                         .into_iter()
-                        .filter(|m| is_move_legal(&self, *m))
+                        .filter(|m| is_move_legal(self, *m))
                         .collect();
                     (coord, legal_moves)
                 })
