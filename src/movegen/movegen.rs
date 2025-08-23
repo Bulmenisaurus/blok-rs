@@ -4,7 +4,6 @@ use crate::board::{
     BoardState, Coord, CoordOffset, Player, StartPosition, get_start_position_coord,
 };
 
-
 use once_cell::sync::Lazy;
 
 pub static PIECE_DATA: Lazy<Vec<Vec<Coord>>> = Lazy::new(|| {
@@ -237,7 +236,9 @@ pub fn generate_first_moves(board: &BoardState) -> Vec<u32> {
                 };
 
                 // Special rules for "middleBlokee"
-                if StartPosition::MiddleBlokee == board.start_position && !is_move_blokee_legal(&mov) {
+                if StartPosition::MiddleBlokee == board.start_position
+                    && !is_move_blokee_legal(&mov)
+                {
                     continue;
                 }
 
