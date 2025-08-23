@@ -17,7 +17,6 @@ pub struct MonteCarlo {
 impl MonteCarlo {
     pub fn new() -> Self {
         Self {
-            // game,
             //TODO: what actually was it
             ucb1_explore_param: 2.,
             nodes: Vec::new(),
@@ -36,7 +35,7 @@ impl MonteCarlo {
         for _ in 0..iterations {
             let node_idx = self.select();
             let node = &self.nodes[node_idx];
-            let winner: GameResult = node.state.game_result();
+            let winner = node.state.game_result();
 
             if node.is_leaf() == false && winner == GameResult::InProgress {
                 let new_node_idx = self.expand(node_idx);
