@@ -1,6 +1,8 @@
 use std::collections::HashSet;
 
-use crate::board::{BoardState, Coord, CoordOffset, Player, get_start_position_coord};
+use crate::board::{
+    BoardState, Coord, CoordOffset, Player, StartPosition, get_start_position_coord,
+};
 
 use serde_json;
 
@@ -178,6 +180,23 @@ pub fn is_move_legal(board: &BoardState, m: u32) -> bool {
     true
 }
 
+pub fn is_move_blokee_legal(m: &Move) -> bool {
+    let move_tiles = &ORIENTATION_DATA[m.movetype as usize][m.orientation as usize];
+
+    return move_tiles.iter().all(|c| {
+        let absolute: Coord = Coord {
+            x: c.x + m.x,
+            y: c.y + m.y,
+        };
+
+        if m.player == 0 {
+            return absolute.x <= 6 && absolute.y > 6;
+        } else {
+            return absolute.x > 6 && absolute.y <= 6;
+        }
+    });
+}
+
 // Rules for the first move are different
 
 pub fn generate_first_moves(board: &BoardState) -> Vec<u32> {
@@ -218,19 +237,12 @@ pub fn generate_first_moves(board: &BoardState) -> Vec<u32> {
                     orientation: i as u8,
                 };
 
-                if mov.movetype == 16 && mov.orientation == 1 {
-                    println!(
-                        "GEN weird move: movetype: {}, orientation: {}",
-                        mov.movetype, mov.orientation
-                    );
-                }
-
                 // Special rules for "middleBlokee"
-                // if let StartPosition::middleBlokee = board.startPosition {
-                //     if !is_move_blokee_legal(&mov, piece_tiles) {
-                //         continue;
-                //     }
-                // }
+                if StartPosition::MiddleBlokee == board.start_position {
+                    if !is_move_blokee_legal(&mov) {
+                        continue;
+                    }
+                }
 
                 // Serialize the move to u32 or whatever is needed
                 let packed = mov.pack();

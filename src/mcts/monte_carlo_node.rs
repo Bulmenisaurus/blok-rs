@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct MonteCarloNode {
     // Apparently never used?
     // pub play: Option<u32>,
@@ -10,7 +10,7 @@ pub struct MonteCarloNode {
     pub n_wins: usize,
 
     pub own_idx: usize,
-    children: HashMap<u32, Option<usize>>,
+    pub children: HashMap<u32, Option<usize>>,
 }
 
 impl MonteCarloNode {

@@ -56,8 +56,8 @@ pub fn get_start_position_coord(start_position: StartPosition) -> (Coord, Coord)
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Score {
-    player_a: u32,
-    player_b: u32,
+    pub player_a: u32,
+    pub player_b: u32,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -70,8 +70,6 @@ pub enum GameResult {
 
 #[derive(Debug, Clone)]
 pub struct BoardState {
-    // Pieces on the board, packed into 32 bits
-    pub pieces: Vec<u32>,
     // Player to move
     pub player: Player,
 
@@ -96,7 +94,6 @@ pub struct BoardState {
 impl BoardState {
     pub fn new(start_position: StartPosition) -> Self {
         Self {
-            pieces: Vec::new(),
             player: Player::White,
             player_a_remaining: 0x1fffff,
             player_b_remaining: 0x1fffff,
@@ -114,19 +111,21 @@ impl BoardState {
     }
 
     pub fn score(&self) -> Score {
-        let player_a_score: usize = self
-            .pieces
-            .iter()
-            .filter(|m| Move::get_player(**m) == 0)
-            .map(|m| PIECE_DATA[Move::get_movetype(*m) as usize].len())
-            .sum();
+        let player_a_remaining = self.player_a_remaining;
+        let mut player_a_score = 0;
+        for i in 0..21 {
+            if player_a_remaining & (1 << i) == 0 {
+                player_a_score += PIECE_DATA[i as usize].len();
+            }
+        }
 
-        let player_b_score: usize = self
-            .pieces
-            .iter()
-            .filter(|m| Move::get_player(**m) == 1)
-            .map(|m| PIECE_DATA[Move::get_movetype(*m) as usize].len())
-            .sum();
+        let player_b_remaining = self.player_b_remaining;
+        let mut player_b_score = 0;
+        for i in 0..21 {
+            if player_b_remaining & (1 << i) == 0 {
+                player_b_score += PIECE_DATA[i as usize].len();
+            }
+        }
 
         Score {
             player_a: player_a_score as u32,
@@ -183,7 +182,6 @@ impl BoardState {
         }
 
         self.null_move_counter = 0;
-        self.pieces.push(board_move);
         let mov = Move::unpack(board_move);
 
         // remove this move from the pool
@@ -310,16 +308,5 @@ impl BoardState {
 
     pub fn skip_turn(&mut self) {
         self.player = self.player.other();
-    }
-
-    pub fn _hash(&self) -> String {
-        let moves = self
-            .pieces
-            .iter()
-            .map(|m| m.to_string())
-            .collect::<Vec<_>>()
-            .join("/");
-
-        format!("{}+{}", moves, self.null_move_counter)
     }
 }
