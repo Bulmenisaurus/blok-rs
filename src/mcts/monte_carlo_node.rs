@@ -13,8 +13,7 @@ pub struct MonteCarloNode {
     pub play: Option<u32>,
     pub parent_idx: Option<usize>,
 
-    pub state: BoardState,
-
+    //? pub state: BoardState,
     pub n_plays: usize,
     pub n_wins: usize,
 
@@ -27,7 +26,7 @@ impl MonteCarloNode {
         idx: usize,
         parent_idx: Option<usize>,
         play: Option<u32>,
-        state: BoardState,
+        //? state: BoardState,
         unexpanded_plays: Vec<u32>,
     ) -> Self {
         let mut children = HashMap::new();
@@ -38,7 +37,7 @@ impl MonteCarloNode {
         Self {
             play,
             parent_idx,
-            state,
+            //? state,
             n_plays: 0,
             n_wins: 0,
             own_idx: idx,
@@ -57,7 +56,7 @@ impl MonteCarloNode {
     pub fn expand(
         &mut self,
         play: u32,
-        child_state: BoardState,
+        //? child_state: BoardState,
         unexpanded_plays: Vec<u32>,
         new_idx: usize,
     ) -> Result<MonteCarloNode, &str> {
@@ -69,7 +68,7 @@ impl MonteCarloNode {
             new_idx,
             Some(self.own_idx),
             Some(play),
-            child_state,
+            //? child_state,
             unexpanded_plays,
         );
 

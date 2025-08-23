@@ -26,21 +26,26 @@ impl MonteCarlo {
     }
 
     pub fn run_search(&mut self, state: BoardState) {
-        self.make_root_node(state);
-        let iterations = 1_000;
+        self.make_root_node(state.clone());
+        let iterations = 20_000;
 
         for _ in 0..iterations {
-            let node_idx = self.select();
+            let tree_state: &mut BoardState = &mut state.clone();
+
+            let node_idx = self.select(tree_state);
             let node = &self.nodes[node_idx];
-            let winner = node.state.game_result();
+
+            let winner = tree_state.game_result();
 
             if !node.is_leaf() && winner == GameResult::InProgress {
-                let new_node_idx = self.expand(node_idx);
-                let winner = self.simulate(new_node_idx);
+                let new_node_idx = self.expand(node_idx, tree_state);
+                // the player to move on the expanded state, before the simulation (used to update the correct n_wins during backpropagation)
+                let player = tree_state.player;
+                let winner = self.simulate(new_node_idx, tree_state);
 
-                self.backpropagate(new_node_idx, winner);
+                self.backpropagate(new_node_idx, winner, player);
             } else {
-                self.backpropagate(node_idx, winner);
+                self.backpropagate(node_idx, winner, tree_state.player);
             }
         }
     }
@@ -52,7 +57,7 @@ impl MonteCarlo {
         if new_idx != 0 {
             panic!("Root node not at 0");
         }
-        let node = MonteCarloNode::new(new_idx, None, None, state, unexpanded_moves);
+        let node = MonteCarloNode::new(new_idx, None, None, unexpanded_moves);
         self.nodes.push(node);
     }
 
@@ -86,7 +91,7 @@ impl MonteCarlo {
     }
 
     /// Phase 1, Selection: Select until not fully expanded OR leaf
-    fn select(&mut self) -> usize {
+    fn select(&mut self, state: &mut BoardState) -> usize {
         let mut node = &self.nodes[0];
 
         while node.is_fully_expanded() && !node.is_leaf() {
@@ -108,14 +113,17 @@ impl MonteCarlo {
                 best_play.expect("No best play found. Was select called on a leaf node?");
 
             let child_idx = node.child_node(best_play);
-            node = &self.nodes[child_idx]
+            node = &self.nodes[child_idx];
+
+            // update the board state to include this move
+            state.do_move(best_play);
         }
 
         node.own_idx
     }
 
     /// Phase 2, Expansion: Expand a random unexpanded child node
-    fn expand(&mut self, node_idx: usize) -> usize {
+    fn expand(&mut self, node_idx: usize, current_state: &mut BoardState) -> usize {
         let new_idx = self.nodes.len();
 
         let node: &mut MonteCarloNode = &mut self.nodes[node_idx];
@@ -126,12 +134,13 @@ impl MonteCarlo {
         let mut rng = rng();
         let &random_move = plays.choose(&mut rng).expect("No moves to choose from");
 
-        let mut child_state = node.state.clone();
-        child_state.do_move(random_move);
-        let child_unexpanded_plays = generate_moves(&child_state);
+        // update the state
+        current_state.do_move(random_move);
+
+        let child_unexpanded_plays = generate_moves(&current_state);
 
         let child_node = node
-            .expand(random_move, child_state, child_unexpanded_plays, new_idx)
+            .expand(random_move, child_unexpanded_plays, new_idx)
             .unwrap();
 
         self.nodes.push(child_node);
@@ -140,10 +149,10 @@ impl MonteCarlo {
     }
 
     /// Phase 3, Simulation: Play game to terminal state, return winner
-    fn simulate(&self, node_idx: usize) -> GameResult {
+    fn simulate(&self, node_idx: usize, current_state: &mut BoardState) -> GameResult {
         let node = &self.nodes[node_idx];
         let mut rng = rng();
-        let mut state = node.state.clone();
+        let mut state = current_state.clone();
 
         loop {
             let winner = state.game_result();
@@ -157,12 +166,14 @@ impl MonteCarlo {
     }
 
     /// Phase 4, Backpropagation: Update ancestor statistics
-    fn backpropagate(&mut self, node_idx: usize, winner: GameResult) {
+    fn backpropagate(&mut self, node_idx: usize, winner: GameResult, player_to_move: Player) {
         let mut current_node: &mut MonteCarloNode = &mut self.nodes[node_idx];
+        let mut player = player_to_move;
         loop {
             current_node.n_plays += 1;
 
-            let player_to_win = current_node.state.player.other();
+            // need to inver it as the evaluation is from the perspective of the parent
+            let player_to_win = player.other();
 
             match (player_to_win, winner) {
                 (Player::White, GameResult::PlayerAWon)
@@ -175,7 +186,8 @@ impl MonteCarlo {
                 return;
             }
 
-            current_node = &mut self.nodes[parent_node_idx.unwrap()]
+            current_node = &mut self.nodes[parent_node_idx.unwrap()];
+            player = player.other();
         }
     }
 
