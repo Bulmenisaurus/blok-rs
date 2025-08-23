@@ -21,13 +21,14 @@ impl MonteCarlo {
     }
 
     // Clear the search to prepare for a new search
+
     pub fn clear(&mut self) {
         self.nodes.clear();
     }
 
     pub fn run_search(&mut self, state: BoardState) {
         self.make_root_node(&state);
-        let iterations = 20_000;
+        let iterations = 1_000;
 
         for _ in 0..iterations {
             let tree_state: &mut BoardState = &mut state.clone();
@@ -41,7 +42,7 @@ impl MonteCarlo {
                 let new_node_idx = self.expand(node_idx, tree_state);
                 // the player to move on the expanded state, before the simulation (used to update the correct n_wins during backpropagation)
                 let player = tree_state.player;
-                let winner = self.simulate(new_node_idx, tree_state);
+                let winner = self.simulate(tree_state);
 
                 self.backpropagate(new_node_idx, winner, player);
             } else {
@@ -57,7 +58,7 @@ impl MonteCarlo {
         if new_idx != 0 {
             panic!("Root node not at 0");
         }
-        let node = MonteCarloNode::new(new_idx, None, None, unexpanded_moves);
+        let node = MonteCarloNode::new(new_idx, None, unexpanded_moves);
         self.nodes.push(node);
     }
 
@@ -69,23 +70,13 @@ impl MonteCarlo {
         }
 
         let all_plays = node.all_plays();
-        let mut best_play: Option<u32> = None;
-        let mut max_plays: usize = 0;
 
-        for play in all_plays {
-            let child_node = &self.nodes[node.child_node(play)];
-            // skip unexpanded nodes (probably would've been caught by the condition above)
-            if child_node.n_plays == 0 {
-                continue;
-            }
-            if child_node.n_plays > max_plays || best_play.is_none() {
-                best_play = Some(play);
-                max_plays = child_node.n_plays;
-            }
-        }
+        let best_play = all_plays
+            .iter()
+            .max_by_key(|a| &self.nodes[node.child_node(**a)].n_plays);
 
         match best_play {
-            Some(play) => Ok(play),
+            Some(play) => Ok(*play),
             None => Err("No best play found. Was best_play called on a leaf node?"),
         }
     }
@@ -149,8 +140,7 @@ impl MonteCarlo {
     }
 
     /// Phase 3, Simulation: Play game to terminal state, return winner
-    fn simulate(&self, node_idx: usize, current_state: &mut BoardState) -> GameResult {
-        let node = &self.nodes[node_idx];
+    fn simulate(&self, current_state: &mut BoardState) -> GameResult {
         let mut rng = rng();
         let mut state = current_state.clone();
 

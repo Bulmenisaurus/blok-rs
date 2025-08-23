@@ -312,7 +312,7 @@ impl BoardState {
         self.player = self.player.other();
     }
 
-    pub fn hash(&self) -> String {
+    pub fn _hash(&self) -> String {
         let moves = self
             .pieces
             .iter()

@@ -26,10 +26,10 @@ pub static ORIENTATIONS_BITBOARD_HALO_DATA: Lazy<Vec<Vec<Vec<u32>>>> = Lazy::new
     serde_json::from_str(json_str).unwrap()
 });
 
-pub static RR_DATA: Lazy<Vec<Vec<u32>>> = Lazy::new(|| {
-    let json_str = include_str!("piece-rr.json");
-    serde_json::from_str(json_str).unwrap()
-});
+// pub static RR_DATA: Lazy<Vec<Vec<u32>>> = Lazy::new(|| {
+//     let json_str = include_str!("piece-rr.json");
+//     serde_json::from_str(json_str).unwrap()
+// });
 
 pub static CORNERS_DATA: Lazy<Vec<Vec<Vec<Coord>>>> = Lazy::new(|| {
     let json_str = include_str!("piece-corners.json");

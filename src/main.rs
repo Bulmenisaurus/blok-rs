@@ -12,4 +12,7 @@ fn main() {
     let best = eval.best_play().unwrap();
     println!("best: {}", best);
     println!("stat: {:?}", eval.get_stats());
+
+    board.do_move(0);
+    eval.clear();
 }
