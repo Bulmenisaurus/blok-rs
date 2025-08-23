@@ -2,59 +2,56 @@ use std::collections::HashMap;
 
 use crate::board::BoardState;
 
-#[derive(Clone)]
+#[derive(Clone, Copy)]
 struct ChildInfo {
     play: u32,
-    node: Option<MonteCarloNode>,
+    node: Option<usize>,
 }
 
 #[derive(Clone)]
 pub struct MonteCarloNode {
-    play: Option<u32>,
-    state: BoardState,
-    n_plays: usize,
-    n_wins: usize,
-    // Hash of parent
-    parent: Option<String>,
+    pub play: Option<u32>,
+    pub parent_idx: Option<usize>,
+
+    pub state: BoardState,
+
+    pub n_plays: usize,
+    pub n_wins: usize,
+
+    pub own_idx: usize,
     children: HashMap<u32, ChildInfo>,
 }
 
 impl MonteCarloNode {
     pub fn new(
-        parent: Option<String>,
+        idx: usize,
+        parent_idx: Option<usize>,
         play: Option<u32>,
         state: BoardState,
-        unexpanded_playes: Vec<u32>,
+        unexpanded_plays: Vec<u32>,
     ) -> Self {
         let mut children = HashMap::new();
-        for play in unexpanded_playes {
+        for play in unexpanded_plays {
             children.insert(play, ChildInfo { play, node: None });
         }
 
         Self {
             play,
+            parent_idx,
             state,
             n_plays: 0,
             n_wins: 0,
-            parent,
+            own_idx: idx,
             children,
         }
     }
 
-    pub fn child_node(&self, play: u32) -> Result<MonteCarloNode, &str> {
-        let child_info = self.children.get(&play);
-
-        if child_info.is_none() {
-            return Err("Child node not found");
-        }
-
-        let child_info = child_info.unwrap();
-
-        if child_info.node.is_none() {
-            return Err("Child not expanded");
-        }
-
-        Ok(child_info.node.clone().unwrap())
+    pub fn child_node(&self, play: u32) -> usize {
+        self.children
+            .get(&play)
+            .expect("Child node not found")
+            .node
+            .expect("Child not expanded")
     }
 
     pub fn expand(
@@ -62,13 +59,15 @@ impl MonteCarloNode {
         play: u32,
         child_state: BoardState,
         unexpanded_plays: Vec<u32>,
+        new_idx: usize,
     ) -> Result<MonteCarloNode, &str> {
         if !self.children.contains_key(&play) {
             return Err("Play not found");
         }
 
         let child_node = MonteCarloNode::new(
-            Some(self.state.hash()),
+            new_idx,
+            Some(self.own_idx),
             Some(play),
             child_state,
             unexpanded_plays,
@@ -78,10 +77,41 @@ impl MonteCarloNode {
             play,
             ChildInfo {
                 play,
-                node: Some(child_node.clone()),
+                node: Some(new_idx),
             },
         );
 
         Ok(child_node)
+    }
+
+    pub fn all_plays(&self) -> Vec<u32> {
+        return self.children.iter().map(|k| k.1.play).collect();
+    }
+
+    pub fn unexpanded_plays(&self) -> Vec<u32> {
+        return self
+            .children
+            .iter()
+            .filter_map(|k| {
+                let node = k.1.node;
+                if node.is_none() { Some(*k.0) } else { None }
+            })
+            .collect();
+    }
+
+    pub fn is_fully_expanded(&self) -> bool {
+        return self.children.iter().all(|k| k.1.node.is_some());
+    }
+
+    pub fn is_leaf(&self) -> bool {
+        return self.children.len() == 0;
+    }
+
+    pub fn get_ucb1(&self, bias_param: f64, all_nodes: &Vec<MonteCarloNode>) -> f64 {
+        let parent = self.parent_idx.expect("UCB1 not defined for root node");
+        let parent = &all_nodes[parent];
+
+        return self.n_wins as f64 / self.n_plays as f64
+            + f64::sqrt(bias_param * f64::ln(parent.n_plays as f64) / self.n_plays as f64);
     }
 }

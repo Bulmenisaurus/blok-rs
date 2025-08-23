@@ -43,14 +43,14 @@ impl Coord {
 pub enum StartPosition {
     Middle,
     Corner,
-    middleBlokee,
+    MiddleBlokee,
 }
 
 pub fn get_start_position_coord(start_position: StartPosition) -> (Coord, Coord) {
     match start_position {
         StartPosition::Middle => (Coord { x: 4, y: 4 }, Coord { x: 9, y: 9 }),
         StartPosition::Corner => (Coord { x: 0, y: 0 }, Coord { x: 13, y: 13 }),
-        StartPosition::middleBlokee => (Coord { x: 6, y: 7 }, Coord { x: 7, y: 6 }),
+        StartPosition::MiddleBlokee => (Coord { x: 6, y: 7 }, Coord { x: 7, y: 6 }),
     }
 }
 
