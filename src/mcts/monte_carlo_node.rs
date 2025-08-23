@@ -2,8 +2,6 @@ use std::collections::HashMap;
 
 #[derive(Clone, Debug)]
 pub struct MonteCarloNode {
-    // Apparently never used?
-    // pub play: Option<u32>,
     pub parent_idx: Option<usize>,
 
     pub n_plays: usize,
@@ -14,12 +12,7 @@ pub struct MonteCarloNode {
 }
 
 impl MonteCarloNode {
-    pub fn new(
-        idx: usize,
-        parent_idx: Option<usize>,
-        // play: Option<u32>,
-        unexpanded_plays: Vec<u32>,
-    ) -> Self {
+    pub fn new(idx: usize, parent_idx: Option<usize>, unexpanded_plays: Vec<u32>) -> Self {
         let mut children = HashMap::new();
         for play in unexpanded_plays {
             children.insert(play, None);
@@ -80,7 +73,7 @@ impl MonteCarloNode {
         self.children.is_empty()
     }
 
-    pub fn get_ucb1(&self, bias_param: f64, all_nodes: &Vec<MonteCarloNode>) -> f64 {
+    pub fn get_ucb1(&self, bias_param: f64, all_nodes: &[MonteCarloNode]) -> f64 {
         let parent = self.parent_idx.expect("UCB1 not defined for root node");
         let parent = &all_nodes[parent];
 

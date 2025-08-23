@@ -20,13 +20,12 @@ impl MonteCarlo {
     }
 
     // Clear the search to prepare for a new search
-
     pub fn clear(&mut self) {
         self.nodes.clear();
     }
 
     pub fn run_search(&mut self, state: &BoardState, difficulty: &str) {
-        self.make_root_node(&state);
+        self.make_root_node(state);
         let iterations = match difficulty {
             "test" => 1_000,
             "easy" => 10_000,
@@ -59,7 +58,7 @@ impl MonteCarlo {
     }
 
     fn make_root_node(&mut self, state: &BoardState) {
-        let unexpanded_moves = generate_moves(&state);
+        let unexpanded_moves = generate_moves(state);
         let new_idx = self.nodes.len();
 
         if new_idx != 0 {
@@ -135,7 +134,7 @@ impl MonteCarlo {
         // update the state
         current_state.do_move(random_move);
 
-        let child_unexpanded_plays = generate_moves(&current_state);
+        let child_unexpanded_plays = generate_moves(current_state);
 
         let child_node = node
             .expand(random_move, child_unexpanded_plays, new_idx)

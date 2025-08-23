@@ -4,7 +4,6 @@ use crate::board::{
     BoardState, Coord, CoordOffset, Player, StartPosition, get_start_position_coord,
 };
 
-use serde_json;
 
 use once_cell::sync::Lazy;
 
@@ -155,7 +154,7 @@ pub fn is_move_legal(board: &BoardState, m: u32) -> bool {
     let halo_data = &ORIENTATIONS_BITBOARD_HALO_DATA[movetype as usize][orientation as usize];
 
     for bb_y in 0..piece_bitboard.len() + 2 {
-        if location.y as usize + bb_y == 0 || location.y as usize + bb_y - 1 >= my_bitboard.len() {
+        if location.y as usize + bb_y == 0 || location.y as usize + bb_y > my_bitboard.len() {
             continue;
         }
         let cached_halo = halo_data[bb_y] << location.x;
@@ -183,18 +182,18 @@ pub fn is_move_legal(board: &BoardState, m: u32) -> bool {
 pub fn is_move_blokee_legal(m: &Move) -> bool {
     let move_tiles = &ORIENTATION_DATA[m.movetype as usize][m.orientation as usize];
 
-    return move_tiles.iter().all(|c| {
+    move_tiles.iter().all(|c| {
         let absolute: Coord = Coord {
             x: c.x + m.x,
             y: c.y + m.y,
         };
 
         if m.player == 0 {
-            return absolute.x <= 6 && absolute.y > 6;
+            absolute.x <= 6 && absolute.y > 6
         } else {
-            return absolute.x > 6 && absolute.y <= 6;
+            absolute.x > 6 && absolute.y <= 6
         }
-    });
+    })
 }
 
 // Rules for the first move are different
@@ -238,10 +237,8 @@ pub fn generate_first_moves(board: &BoardState) -> Vec<u32> {
                 };
 
                 // Special rules for "middleBlokee"
-                if StartPosition::MiddleBlokee == board.start_position {
-                    if !is_move_blokee_legal(&mov) {
-                        continue;
-                    }
+                if StartPosition::MiddleBlokee == board.start_position && !is_move_blokee_legal(&mov) {
+                    continue;
                 }
 
                 // Serialize the move to u32 or whatever is needed
@@ -321,15 +318,15 @@ pub fn get_legal_moves_from(from: Coord, movetype: u8, board: &BoardState) -> Ve
                 y: coord.y,
                 x: coord.x,
                 player: board.player as u8,
-                movetype: movetype,
+                movetype,
             };
 
             legal_moves.push(mov.pack());
         }
     }
 
-    return legal_moves
+    legal_moves
         .into_iter()
         .filter(|m| is_move_legal(board, *m))
-        .collect();
+        .collect()
 }

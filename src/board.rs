@@ -139,12 +139,10 @@ impl BoardState {
         }
 
         let score = self.score();
-        if score.player_a > score.player_b {
-            return GameResult::PlayerAWon;
-        } else if score.player_a < score.player_b {
-            return GameResult::PlayerBWon;
-        } else {
-            return GameResult::Draw;
+        match score.player_a.cmp(&score.player_b) {
+            std::cmp::Ordering::Greater => GameResult::PlayerAWon,
+            std::cmp::Ordering::Less => GameResult::PlayerBWon,
+            std::cmp::Ordering::Equal => GameResult::Draw,
         }
     }
 
@@ -250,10 +248,8 @@ impl BoardState {
                 if self.player_a_corner_moves.contains_key(&absolute_corner) {
                     continue;
                 }
-            } else {
-                if self.player_b_corner_moves.contains_key(&absolute_corner) {
-                    continue;
-                }
+            } else if self.player_b_corner_moves.contains_key(&absolute_corner) {
+                continue;
             }
 
             let mut legal_moves: Vec<u32> = Vec::new();
