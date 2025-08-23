@@ -26,9 +26,16 @@ impl MonteCarlo {
         self.nodes.clear();
     }
 
-    pub fn run_search(&mut self, state: BoardState) {
+    pub fn run_search(&mut self, state: &BoardState, difficulty: &str) {
         self.make_root_node(&state);
-        let iterations = 1_000;
+        let iterations = match difficulty {
+            "easy" => 10_000,
+            "medium" => 20_000,
+            "hard" => 60_000,
+            _ => 60_000,
+        };
+
+        println!("Running search with {} iterations", iterations);
 
         for _ in 0..iterations {
             let tree_state: &mut BoardState = &mut state.clone();
