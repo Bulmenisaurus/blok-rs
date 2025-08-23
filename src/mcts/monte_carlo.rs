@@ -26,7 +26,7 @@ impl MonteCarlo {
     }
 
     pub fn run_search(&mut self, state: BoardState) {
-        self.make_root_node(state.clone());
+        self.make_root_node(&state);
         let iterations = 20_000;
 
         for _ in 0..iterations {
@@ -50,7 +50,7 @@ impl MonteCarlo {
         }
     }
 
-    fn make_root_node(&mut self, state: BoardState) {
+    fn make_root_node(&mut self, state: &BoardState) {
         let unexpanded_moves = generate_moves(&state);
         let new_idx = self.nodes.len();
 
