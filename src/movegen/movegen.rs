@@ -46,7 +46,7 @@ pub static SHORT_BOUNDING_BOX_DATA: Lazy<Vec<Vec<(u8, u8)>>> = Lazy::new(|| {
     serde_json::from_str(json_str).unwrap()
 });
 
-pub const NULL_MOVE: u32 = 0x7800;
+pub const NULL_MOVE: u32 = 0xf800;
 
 // An unpacked move, with all the information
 #[derive(Clone, Copy, Debug)]
