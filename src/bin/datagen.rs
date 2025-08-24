@@ -28,7 +28,7 @@ fn main() {
             }
 
             while board.game_result() == GameResult::InProgress {
-                mcts.run_search(&mut board, "eval");
+                mcts.run_search(&board, "eval");
                 let evaluation = mcts.get_stats();
                 let moves = generate_moves(&board);
 

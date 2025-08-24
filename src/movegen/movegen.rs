@@ -284,8 +284,9 @@ pub fn generate_moves(board: &BoardState) -> Vec<u32> {
         &board.player_b_corner_moves
     };
 
-    let unique_moves: HashSet<u32> = my_corner_moves.values().flatten().cloned().collect();
-    let unique_moves: Vec<u32> = unique_moves.into_iter().collect();
+    let mut unique_moves: Vec<u32> = my_corner_moves.values().flatten().cloned().collect();
+    unique_moves.sort_unstable();
+    unique_moves.dedup();
 
     if unique_moves.is_empty() {
         return vec![NULL_MOVE];
