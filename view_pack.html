@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>View Packed Blokus Position</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 24px;
+      }
+      #inputArea {
+        margin-bottom: 16px;
+      }
+      #packedInput {
+        width: 600px;
+        font-family: monospace;
+        font-size: 1em;
+        padding: 6px;
+      }
+      #winsDisplay {
+        margin-top: 10px;
+        font-size: 1.2em;
+        font-weight: bold;
+      }
+      #scoreDisplay {
+        margin-top: 6px;
+        font-size: 1.1em;
+        font-weight: normal;
+      }
+      #boardCanvas {
+        border: 1px solid #888;
+        margin-top: 16px;
+        background: #f8f8f8;
+        display: block;
+      }
+      .label {
+        font-weight: bold;
+        margin-right: 8px;
+      }
+    </style>
+  </head>
+  <body>
+    <h2>Blokus Packed Position Viewer</h2>
+    <div id="inputArea">
+      <span class="label"
+        >Paste packed array (15 comma-separated 32-bit integers):</span
+      ><br />
+      <input id="packedInput" type="text" />
+      <button onclick="renderPacked()">Show</button>
+    </div>
+    <div id="winsDisplay"></div>
+    <div id="scoreDisplay"></div>
+    <canvas id="boardCanvas" width="392" height="392"></canvas>
+    <script>
+      // Constants
+      const BOARD_SIZE = 14;
+      const CELL_SIZE = 28; // px
+      const PLAYER_A_COLOR = "#3cb371"; // green
+      const PLAYER_B_COLOR = "#e74c3c"; // red
+      const EMPTY_COLOR = "#f8f8f8";
+      const GRID_COLOR = "#bbb";
+
+      function parsePackedInput(str) {
+        // Accepts comma or space separated, trims, parses as 15 numbers
+        let nums = JSON.parse(str);
+        if (nums.some(isNaN)) return null;
+        return nums;
+      }
+
+      function countBits14(n) {
+        // Count the number of set bits in the lowest 14 bits of n
+        n = n & 0x3fff;
+        let count = 0;
+        while (n) {
+          count += n & 1;
+          n >>>= 1;
+        }
+        return count;
+      }
+
+      function renderPacked() {
+        const input = document.getElementById("packedInput").value;
+        const packed = parsePackedInput(input);
+        const winsDiv = document.getElementById("winsDisplay");
+        const scoreDiv = document.getElementById("scoreDisplay");
+        const canvas = document.getElementById("boardCanvas");
+        const ctx = canvas.getContext("2d");
+
+        // Clear
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        winsDiv.textContent = "";
+        scoreDiv.textContent = "";
+
+        if (!packed) {
+          winsDiv.textContent = "Invalid input. Please enter 15 integers.";
+          return;
+        }
+
+        // Count tiles for each player
+        let playerAScore = 0;
+        let playerBScore = 0;
+
+        // Draw board
+        for (let y = 0; y < BOARD_SIZE; ++y) {
+          // Each row is packed[y]
+          let row = packed[y];
+          let playerA = row & 0x3fff; // lower 14 bits
+          let playerB = (row >>> 16) & 0x3fff; // upper 14 bits of upper half
+
+          playerAScore += countBits14(playerA);
+          playerBScore += countBits14(playerB);
+
+          for (let x = 0; x < BOARD_SIZE; ++x) {
+            let px = x * CELL_SIZE;
+            let py = y * CELL_SIZE;
+            let filledA = (playerA >> x) & 1;
+            let filledB = (playerB >> x) & 1;
+            let color = EMPTY_COLOR;
+            if (filledA && filledB) {
+              // Should not happen, but mark as purple
+              color = "#a020f0";
+            } else if (filledA) {
+              color = PLAYER_A_COLOR;
+            } else if (filledB) {
+              color = PLAYER_B_COLOR;
+            }
+            ctx.fillStyle = color;
+            ctx.fillRect(px, py, CELL_SIZE, CELL_SIZE);
+
+            // Optionally, draw a dot for both
+            if (filledA && filledB) {
+              ctx.fillStyle = "#fff";
+              ctx.beginPath();
+              ctx.arc(
+                px + CELL_SIZE / 2,
+                py + CELL_SIZE / 2,
+                CELL_SIZE / 4,
+                0,
+                2 * Math.PI
+              );
+              ctx.fill();
+            }
+          }
+        }
+
+        // Draw grid
+        ctx.strokeStyle = GRID_COLOR;
+        ctx.lineWidth = 1;
+        for (let i = 0; i <= BOARD_SIZE; ++i) {
+          ctx.beginPath();
+          ctx.moveTo(i * CELL_SIZE, 0);
+          ctx.lineTo(i * CELL_SIZE, BOARD_SIZE * CELL_SIZE);
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.moveTo(0, i * CELL_SIZE);
+          ctx.lineTo(BOARD_SIZE * CELL_SIZE, i * CELL_SIZE);
+          ctx.stroke();
+        }
+
+        // Show wins
+        let wins = packed[14];
+        winsDiv.textContent = "Wins: " + wins;
+
+        // Show score
+        scoreDiv.textContent =
+          "Player A tiles: " +
+          playerAScore +
+          "  Player B tiles: " +
+          playerBScore;
+      }
+
+      // Optionally, render on enter
+      document
+        .getElementById("packedInput")
+        .addEventListener("keydown", function (e) {
+          if (e.key === "Enter") renderPacked();
+        });
+
+      // Example: fill with a sample position
+      document.getElementById("packedInput").value =
+        "[65536,0,0,0,0,0,0,0,0,0,0,0,0,0,42]";
+      renderPacked();
+    </script>
+  </body>
+</html>

@@ -16,12 +16,12 @@ pub static ORIENTATION_DATA: Lazy<Vec<Vec<Vec<Coord>>>> = Lazy::new(|| {
     serde_json::from_str(json_str).unwrap()
 });
 
-pub static ORIENTATIONS_BITBOARD_DATA: Lazy<Vec<Vec<Vec<u32>>>> = Lazy::new(|| {
+pub static ORIENTATIONS_BITBOARD_DATA: Lazy<Vec<Vec<Vec<u16>>>> = Lazy::new(|| {
     let json_str = include_str!("piece-orientations-bitboard.json");
     serde_json::from_str(json_str).unwrap()
 });
 
-pub static ORIENTATIONS_BITBOARD_HALO_DATA: Lazy<Vec<Vec<Vec<u32>>>> = Lazy::new(|| {
+pub static ORIENTATIONS_BITBOARD_HALO_DATA: Lazy<Vec<Vec<Vec<u16>>>> = Lazy::new(|| {
     let json_str = include_str!("piece-orientations-bitboard-halo.json");
     serde_json::from_str(json_str).unwrap()
 });

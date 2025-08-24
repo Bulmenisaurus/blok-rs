@@ -78,8 +78,8 @@ pub struct BoardState {
     pub player_b_remaining: u32,
 
     // Bitboards for tiles placed
-    pub player_a_bit_board: [u32; 14],
-    pub player_b_bit_board: [u32; 14],
+    pub player_a_bit_board: [u16; 14],
+    pub player_b_bit_board: [u16; 14],
 
     pub start_position: StartPosition,
 
