@@ -322,14 +322,13 @@ pub fn get_legal_moves_from(from: Coord, movetype: u8, board: &BoardState) -> Ve
                 movetype,
             };
 
-            legal_moves.push(mov.pack());
+            if is_move_legal(board, mov.pack()) {
+                legal_moves.push(mov.pack());
+            }
         }
     }
 
     legal_moves
-        .into_iter()
-        .filter(|m| is_move_legal(board, *m))
-        .collect()
 }
 
 pub fn update_move_cache(board: &mut BoardState, last_move: u32) {
