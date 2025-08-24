@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use crate::board::{
     BoardState, Coord, CoordOffset, Player, StartPosition, get_start_position_coord,
@@ -330,4 +330,152 @@ pub fn get_legal_moves_from(from: Coord, movetype: u8, board: &BoardState) -> Ve
         .into_iter()
         .filter(|m| is_move_legal(board, *m))
         .collect()
+}
+
+pub fn update_move_cache(board: &mut BoardState, last_move: u32) {
+    let mov = Move::unpack(last_move);
+
+    // remove this move from the pool
+    if mov.player == (Player::White as u8) {
+        board.player_a_remaining &= !(1 << mov.movetype);
+    } else {
+        board.player_b_remaining &= !(1 << mov.movetype);
+    }
+
+    let my_bitboard = if mov.player == (Player::White as u8) {
+        &mut board.player_a_bit_board
+    } else {
+        &mut board.player_b_bit_board
+    };
+
+    // update bitboards
+    let piece_bitboard =
+        &ORIENTATIONS_BITBOARD_DATA[mov.movetype as usize][mov.orientation as usize];
+
+    for bb_y in 0..piece_bitboard.len() {
+        my_bitboard[mov.y as usize + bb_y] |= piece_bitboard[bb_y] << mov.x;
+    }
+
+    // Update the corner data.
+    // 1. For each of the corners of the placed piece, clear the corner moves for that corner (because there cannot be any moves there anymore)
+    // 2. Filter out the moves that are no longer valid
+    // 3. Add the new moves to the corner moves
+
+    let corners = &CORNERS_DATA[mov.movetype as usize][mov.orientation as usize];
+    for corner in corners {
+        let absolute_corner = Coord {
+            x: corner.x + mov.x,
+            y: corner.y + mov.y,
+        };
+
+        // delete all the moves for this corner
+        board.player_a_corner_moves.remove(&absolute_corner);
+        board.player_b_corner_moves.remove(&absolute_corner);
+    }
+
+    let my_remaining_pieces = if board.player == Player::White {
+        board.player_a_remaining
+    } else {
+        board.player_b_remaining
+    };
+
+    let corner_attachers = &CORNER_ATTACHERS_DATA[mov.movetype as usize][mov.orientation as usize];
+    for corner in corner_attachers {
+        if (corner.x < 0 && -corner.x > mov.x as i8) || (corner.y < 0 && -corner.y > mov.y as i8) {
+            continue;
+        }
+
+        let absolute_corner = Coord {
+            x: (corner.x + mov.x as i8) as u8,
+            y: (corner.y + mov.y as i8) as u8,
+        };
+
+        if !absolute_corner.in_bounds() {
+            continue;
+        }
+
+        if board.player == Player::White {
+            if board.player_a_corner_moves.contains_key(&absolute_corner) {
+                continue;
+            }
+        } else if board.player_b_corner_moves.contains_key(&absolute_corner) {
+            continue;
+        }
+
+        let mut legal_moves: Vec<u32> = Vec::new();
+
+        for unplaced_piece in 0..21 {
+            if my_remaining_pieces & (1 << unplaced_piece) == 0 {
+                continue;
+            }
+
+            let movetype = unplaced_piece as u8;
+
+            legal_moves.extend(get_legal_moves_from(absolute_corner, movetype, board));
+        }
+
+        if board.player == Player::White {
+            board
+                .player_a_corner_moves
+                .insert(absolute_corner, legal_moves);
+        } else {
+            board
+                .player_b_corner_moves
+                .insert(absolute_corner, legal_moves);
+        }
+    }
+
+    board.skip_turn();
+
+    // filter opponent's moves (now the player to move)
+    let opponent_cached_moves: Vec<Coord> = if board.player == Player::White {
+        board.player_a_corner_moves.keys().cloned().collect()
+    } else {
+        board.player_b_corner_moves.keys().cloned().collect()
+    };
+
+    for coord in opponent_cached_moves {
+        let old_moves = if board.player == Player::White {
+            board.player_a_corner_moves.get_mut(&coord).unwrap().clone()
+        } else {
+            board.player_b_corner_moves.get_mut(&coord).unwrap().clone()
+        };
+
+        let new_moves: Vec<u32> = old_moves
+            .into_iter()
+            .filter(|m| is_move_legal(board, *m))
+            .collect();
+
+        if board.player == Player::White {
+            board.player_a_corner_moves.insert(coord, new_moves);
+        } else {
+            board.player_b_corner_moves.insert(coord, new_moves);
+        }
+    }
+}
+
+pub fn update_move_cache_from_null_move(board: &mut BoardState) {
+    // Take ownership of the cached moves, filter them, then reassign
+    let cached_moves = if board.player == Player::White {
+        std::mem::take(&mut board.player_a_corner_moves)
+    } else {
+        std::mem::take(&mut board.player_b_corner_moves)
+    };
+
+    let filtered_moves: HashMap<Coord, Vec<u32>> = cached_moves
+        .into_iter()
+        .map(|(coord, moves)| {
+            let legal_moves: Vec<u32> = moves
+                .into_iter()
+                .filter(|m| is_move_legal(board, *m))
+                .collect();
+            (coord, legal_moves)
+        })
+        .collect();
+
+    if board.player == Player::White {
+        board.player_a_corner_moves = filtered_moves;
+    } else {
+        board.player_b_corner_moves = filtered_moves;
+    }
 }
