@@ -6,44 +6,60 @@ use blok_rs::{
 
 use rand::{Rng, seq::IndexedRandom};
 
+use rayon::prelude::*;
+use std::time::Instant;
+
 fn main() {
-    let mut board = BoardState::new(StartPosition::Corner);
-    let mut mcts = MonteCarlo::new();
-    let mut rng = rand::rng();
+    let start = Instant::now();
 
-    let mut i = 0;
+    let total: i32 = (0..100)
+        .into_par_iter()
+        .map(|_| {
+            let mut i = 0;
+            let mut board = BoardState::new(StartPosition::Corner);
+            let mut mcts = MonteCarlo::new();
+            let mut rng = rand::rng();
 
-    // opening: skip first 4 moves
-    for _ in 0..4 {
-        let moves = generate_moves(&board);
-        let random_move = moves.choose(&mut rng).unwrap();
-        board.do_move(*random_move);
-    }
+            // opening: skip opening moves
+            for _ in 0..6 {
+                let moves = generate_moves(&board);
+                let random_move = moves.choose(&mut rng).unwrap();
+                board.do_move(*random_move);
+            }
 
-    while board.game_result() == GameResult::InProgress {
-        mcts.run_search(&mut board, "eval");
-        let evaluation = mcts.get_stats();
-        let moves = generate_moves(&board);
+            while board.game_result() == GameResult::InProgress {
+                mcts.run_search(&mut board, "eval");
+                let evaluation = mcts.get_stats();
+                let moves = generate_moves(&board);
 
-        // 90% optimal, 10% random
-        let chosen_move = if rng.random_bool(0.9) {
-            mcts.best_play().unwrap()
-        } else {
-            println!("Random move");
-            *moves.choose(&mut rng).unwrap()
-        };
+                // 90% optimal, 10% random
+                let chosen_move = if rng.random_bool(0.9) {
+                    mcts.best_play().unwrap()
+                } else {
+                    println!("Random move");
+                    *moves.choose(&mut rng).unwrap()
+                };
 
-        mcts.clear();
-        println!("Evaluation: {:?}", evaluation);
+                mcts.clear();
+                println!("Evaluation: {:?}", evaluation);
 
-        let packed = pack(&board, evaluation.0);
-        println!("Packed: {:?}", packed);
+                let packed = pack(&board, evaluation.0);
+                // println!("Packed: {:?}", packed);
 
-        board.do_move(chosen_move);
-        i += 1;
-    }
+                board.do_move(chosen_move);
+                i += 1;
+            }
 
-    println!("Total positions: {}", i);
+            i
+        })
+        .sum();
+
+    let duration = start.elapsed();
+    println!("Total positions: {}", total);
+    println!(
+        "Positions per second: {}",
+        total as f64 / duration.as_secs_f64()
+    );
 }
 
 //TODO: make sure side to move is always in the top left
