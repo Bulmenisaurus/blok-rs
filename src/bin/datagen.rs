@@ -4,7 +4,7 @@ use blok_rs::{
     movegen::generate_moves,
 };
 
-use rand::{Rng, seq::IndexedRandom};
+use rand::seq::IndexedRandom;
 
 use rayon::prelude::*;
 use std::time::Instant;
@@ -12,7 +12,7 @@ use std::time::Instant;
 fn main() {
     let start = Instant::now();
 
-    let total: i32 = (0..100)
+    let total: i32 = (0..8)
         .into_par_iter()
         .map(|_| {
             let mut i = 0;
@@ -30,15 +30,8 @@ fn main() {
             while board.game_result() == GameResult::InProgress {
                 mcts.run_search(&board, "eval");
                 let evaluation = mcts.get_stats();
-                let moves = generate_moves(&board);
 
-                // 90% optimal, 10% random
-                let chosen_move = if rng.random_bool(0.9) {
-                    mcts.best_play().unwrap()
-                } else {
-                    println!("Random move");
-                    *moves.choose(&mut rng).unwrap()
-                };
+                let chosen_move = mcts.best_play().unwrap();
 
                 mcts.clear();
                 println!("Evaluation: {:?}", evaluation);

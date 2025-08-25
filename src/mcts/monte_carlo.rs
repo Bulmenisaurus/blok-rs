@@ -34,7 +34,7 @@ impl MonteCarlo {
         self.make_root_node(state);
         let iterations = match difficulty {
             "test" => 1_000,
-            "eval" => 5_000,
+            "eval" => 1_000,
             "easy" => 10_000,
             "medium" => 20_000,
             "hard" => 60_000,
