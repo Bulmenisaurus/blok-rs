@@ -67,6 +67,7 @@ fn main() {
 fn pack(board: &BoardState, n_wins: usize) -> [u32; 15] {
     let mut packed: [u32; 15] = [0; 15];
 
+    #[allow(clippy::needless_range_loop)]
     for i in 0..14 {
         let actual_i = match board.player {
             Player::White => i,

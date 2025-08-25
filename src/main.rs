@@ -14,7 +14,8 @@ use tokio_tungstenite::{WebSocketStream, accept_async};
 enum ServerMessage {
     #[serde(rename = "init")]
     Init {
-        startPos: String,
+        #[serde(rename = "startPos")]
+        start_pos: String,
         difficulty: String,
     },
     #[serde(rename = "findMove")]
@@ -41,11 +42,11 @@ async fn handle_websocket(ws_stream: WebSocketStream<TcpStream>) {
                         println!("Client message: {:?}", client_msg);
                         match client_msg {
                             ServerMessage::Init {
-                                startPos,
+                                start_pos,
                                 difficulty,
                             } => {
                                 println!("Client requested init");
-                                let start_position = match startPos.as_str() {
+                                let start_position = match start_pos.as_str() {
                                     "middle" => board::StartPosition::Middle,
                                     "corner" => board::StartPosition::Corner,
                                     "middleBlokee" => board::StartPosition::MiddleBlokee,

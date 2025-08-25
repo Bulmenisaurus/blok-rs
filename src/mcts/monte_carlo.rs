@@ -10,6 +10,12 @@ pub struct MonteCarlo {
     pub nodes: Vec<MonteCarloNode>,
 }
 
+impl Default for MonteCarlo {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl MonteCarlo {
     pub fn new() -> Self {
         Self {
@@ -188,6 +194,7 @@ impl MonteCarlo {
         }
     }
 
+    #[allow(dead_code)]
     pub fn get_stats(&self) -> (usize, usize) {
         let root = &self.nodes[0];
 

@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 use crate::board::{
     BoardState, Coord, CoordOffset, Player, StartPosition, get_start_position_coord,
