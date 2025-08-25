@@ -115,12 +115,7 @@ pub fn is_move_legal(board: &BoardState, m: u32) -> bool {
 
     // check if it is outside of the board
     let (bx, by) = SHORT_BOUNDING_BOX_DATA[movetype as usize][orientation as usize];
-    let bottom_right = Coord {
-        x: location.x + bx,
-        y: location.y + by,
-    };
-
-    if !bottom_right.in_bounds() || !location.in_bounds() {
+    if location.x + bx > 13 || location.y + by > 13 {
         return false;
     }
 
