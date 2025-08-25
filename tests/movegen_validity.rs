@@ -4,6 +4,8 @@ use blok_rs::board::Score;
 use blok_rs::board::StartPosition;
 use blok_rs::movegen;
 
+use serde_json;
+
 #[test]
 pub fn root_node_has_all_moves() {
     let mut game = BoardState::new(StartPosition::Corner);
@@ -69,6 +71,27 @@ pub fn root_node_has_all_moves() {
     assert_eq!(score.player_b, 5);
 
     assert_eq!(moves, expected_moves);
+}
+
+#[test]
+pub fn game_length_movegen() {
+    let game_data = include_str!("./testdata/game_movedata.json");
+    let test_data: Vec<Vec<Vec<u32>>> = serde_json::from_str(game_data).unwrap();
+
+    for single_game_data in test_data {
+        let mut game = BoardState::new(StartPosition::Corner);
+
+        for move_data in single_game_data {
+            game.do_move(move_data[0]);
+            let mut moves = movegen::generate_moves(&game);
+            moves.sort();
+
+            let mut expected_moves = move_data[1..].to_vec();
+            expected_moves.sort();
+
+            assert_eq!(moves, expected_moves);
+        }
+    }
 }
 
 #[test]
