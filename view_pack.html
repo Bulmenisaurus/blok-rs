@@ -2,6 +2,7 @@
 <html>
   <head>
     <title>View Packed Blokus Position</title>
+    <link rel="icon" href="./blok-favicon.png" />
     <style>
       body {
         font-family: Arial, sans-serif;
@@ -50,6 +51,7 @@
     <div id="winsDisplay"></div>
     <div id="scoreDisplay"></div>
     <canvas id="boardCanvas" width="392" height="392"></canvas>
+
     <script>
       // Constants
       const BOARD_SIZE = 14;
@@ -157,8 +159,11 @@
         }
 
         // Show wins
-        let wins = packed[14];
-        winsDiv.textContent = "Wins: " + wins;
+        let totalPlays = packed[14] & 0x7fff;
+        let wins = (packed[14] >> 15) & 0x7fff;
+        let packedGameResult = packed[14] >> 30;
+        let gameResult = ["W", "L", "D"][packedGameResult];
+        winsDiv.textContent = `Wins: ${wins} / ${totalPlays} (~~> ${gameResult})`;
 
         // Show score
         scoreDiv.textContent =

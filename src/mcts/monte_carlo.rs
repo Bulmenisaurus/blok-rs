@@ -41,8 +41,6 @@ impl MonteCarlo {
             _ => 60_000,
         };
 
-        println!("Running search with {} iterations", iterations);
-
         for _ in 0..iterations {
             let tree_state: &mut BoardState = &mut state.clone();
 

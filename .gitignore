@@ -3,4 +3,4 @@
 # Samply profile
 profile.json.gz
 
-packed.bin
+*.bin
