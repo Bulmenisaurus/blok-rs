@@ -159,11 +159,12 @@
         }
 
         // Show wins
-        let totalPlays = packed[14] & 0x7fff;
-        let wins = (packed[14] >> 15) & 0x7fff;
+        let totalPlays = packed[14] & 0x3fff;
+        let wins = (packed[14] >> 14) & 0x3fff;
+        let sideToMove = "GR"[(packed[14] >> 28) & 1];
         let packedGameResult = packed[14] >> 30;
-        let gameResult = ["G", "R", "D"][packedGameResult];
-        winsDiv.textContent = `Wins: ${wins} / ${totalPlays} (~~> ${gameResult})`;
+        let gameResult = "GRD"[packedGameResult];
+        winsDiv.textContent = `Wins: ${wins} / ${totalPlays} (~~> ${gameResult}) stm ${sideToMove}`;
 
         // Show score
         scoreDiv.textContent =

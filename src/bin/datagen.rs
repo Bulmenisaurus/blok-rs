@@ -21,7 +21,7 @@ fn main() {
 
     // Process in batches to allow periodic writes
     let batch_size = 100; // Adjust based on your needs
-    let total_games = 30usize;
+    let total_games = 5usize;
 
     for batch_start in (0..total_games).step_by(batch_size) {
         let batch_end = (batch_start + batch_size).min(total_games);
@@ -29,7 +29,7 @@ fn main() {
         // Collect batch results
         let results: Vec<Vec<[u32; 15]>> = (batch_start..batch_end)
             .into_par_iter()
-            .map(|i| playout(i))
+            .map(|_| playout())
             .collect();
 
         // Write batch results
@@ -59,8 +59,7 @@ fn main() {
     );
 }
 
-fn playout(idx: usize) -> Vec<[u32; 15]> {
-    let mut i = 0;
+fn playout() -> Vec<[u32; 15]> {
     let mut board = BoardState::new(StartPosition::Corner);
     let mut mcts = MonteCarlo::new();
     let mut rng = rand::rng();
@@ -96,19 +95,12 @@ fn playout(idx: usize) -> Vec<[u32; 15]> {
         let should_stop = chosen_move == NULL_MOVE || probability < 0.1 || probability > 0.9;
         if !should_stop {
             packed_positions.push(packed);
-            i += 1;
         }
 
         board.do_move(chosen_move);
     }
 
     let result = board.game_result();
-    let result_str = match board.game_result() {
-        GameResult::PlayerAWon => "A",
-        GameResult::PlayerBWon => "B",
-        GameResult::Draw => "D",
-        GameResult::InProgress => unreachable!(),
-    };
 
     // annotate all of the packed positions with the result (absolute result)
     for packed in packed_positions.iter_mut() {
@@ -119,7 +111,7 @@ fn playout(idx: usize) -> Vec<[u32; 15]> {
             GameResult::Draw => 2,
             GameResult::InProgress => unreachable!(),
         };
-        packed[14] = packed[14] | result_bits << 30;
+        packed[14] |= result_bits << 30;
     }
 
     packed_positions
@@ -138,7 +130,13 @@ fn pack(board: &BoardState, n_wins: usize, n_plays: usize) -> [u32; 15] {
     }
     // n_wins, n_plays each take 14 bits (so max of 2^14 =)
     // use the top two bits to store result (00 = win, 01 = loss, 10 = tie)
-    packed[14] = n_plays as u32 | (n_wins as u32) << 15;
+
+    let side_to_move = match board.player {
+        Player::White => 0,
+        Player::Black => 1,
+    };
+
+    packed[14] = n_plays as u32 | (n_wins as u32) << 14 | side_to_move << 28;
     packed
 }
 
