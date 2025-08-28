@@ -5,3 +5,5 @@ profile.json.gz
 
 *.bin
 *.bin.gz
+
+!nn/quantised.bin

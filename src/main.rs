@@ -1,6 +1,7 @@
 mod board;
 mod mcts;
 mod movegen;
+mod nn;
 
 use futures_util::{SinkExt, StreamExt};
 use mcts::MonteCarlo;
