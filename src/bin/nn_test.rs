@@ -2,16 +2,12 @@ use blok_rs::board::{BoardState, Coord, GameResult, Player, StartPosition};
 use blok_rs::mcts::MonteCarlo;
 use blok_rs::movegen::{Move, NULL_MOVE, generate_moves};
 use blok_rs::nn::{Accumulator, Network};
-use rand::rng;
-use rand::seq::IndexedRandom;
 
-static NNUE: Network =
-    unsafe { std::mem::transmute(*include_bytes!("../../nn/simple-40/quantised.bin")) };
+static NNUE: Network = unsafe { std::mem::transmute(*include_bytes!("../../nn/quantised.bin")) };
 
 fn main() {
     // Create a new board in the default start position
     let mut board = BoardState::new(StartPosition::Corner);
-    let mut rng = rand::rng();
 
     let mut mcts = MonteCarlo::new();
 
@@ -27,6 +23,7 @@ fn main() {
 
         mcts.run_search(&board, "eval");
         let best_move = mcts.best_play().unwrap();
+        let (n_wins, n_plays) = mcts.get_stats();
         mcts.clear();
         board.do_move(best_move);
 
@@ -76,7 +73,7 @@ fn main() {
         };
 
         println!("Eval: {}", eval);
-        println!("Board: {:?}", pack(&board, 0, 0));
+        println!("Board: {:?}", pack(&board, n_wins, n_plays));
     }
 }
 

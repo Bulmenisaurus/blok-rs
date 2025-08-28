@@ -5,18 +5,10 @@ use blok_rs::nn::{Accumulator, Network};
 use rand::rng;
 use rand::seq::IndexedRandom;
 
-static NNUE: Network =
-    unsafe { std::mem::transmute(*include_bytes!("../../nn/simple-40/quantised.bin")) };
 fn main() {
     // Create a new board in the default start position
     let mut board = BoardState::new(StartPosition::Corner);
     let mut rng = rand::rng();
-
-    let player_a_accumulator = Accumulator::new(&NNUE);
-    let player_b_accumulator = Accumulator::new(&NNUE);
-
-    let eval = NNUE.evaluate(&player_a_accumulator, &player_b_accumulator);
-    println!("Eval: {}", eval);
 
     // Play 6 random moves
     for _ in 0..6 {
