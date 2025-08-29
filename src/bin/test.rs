@@ -6,9 +6,6 @@ fn main() {
     // Create a new board in the default start position
     let mut board = BoardState::new(StartPosition::Corner);
 
-    board.do_move(4096);
-    board.do_move(85465);
-
     let moves = generate_moves(&board);
 
     let mut moves_with_evals: Vec<(u32, i32)> = moves

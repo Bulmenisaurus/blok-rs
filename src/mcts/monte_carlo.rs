@@ -153,7 +153,7 @@ impl MonteCarlo {
 
     /// Phase 3, Simulation: Play game to terminal state, return winner
     fn simulate(&self, current_state: &mut BoardState) -> GameResult {
-        let eval = if current_state.player == Player::White {
+        let eval = -if current_state.player == Player::White {
             NNUE.evaluate(
                 &current_state.player_a_accumulator,
                 &current_state.player_b_accumulator,
