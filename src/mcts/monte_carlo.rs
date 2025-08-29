@@ -54,11 +54,19 @@ impl MonteCarlo {
                 let new_node_idx = self.expand(node_idx, tree_state);
                 // the player to move on the expanded state, before the simulation (used to update the correct n_wins during backpropagation)
                 let player = tree_state.player;
-                let winner = self.simulate(tree_state);
+                let (winner, probability) = self.simulate(tree_state);
 
-                self.backpropagate(new_node_idx, winner, player);
+                //println!("winner: {:?}, probability: {}", winner, probability);
+
+                self.backpropagate(new_node_idx, winner, probability, player);
             } else {
-                self.backpropagate(node_idx, winner, tree_state.player);
+                let effective_probability = match winner {
+                    GameResult::PlayerAWon => 1.0,
+                    GameResult::PlayerBWon => -1.0,
+                    GameResult::Draw => 0.0,
+                    GameResult::InProgress => unreachable!(),
+                };
+                self.backpropagate(node_idx, winner, effective_probability, tree_state.player);
             }
         }
     }
@@ -152,7 +160,8 @@ impl MonteCarlo {
     }
 
     /// Phase 3, Simulation: Play game to terminal state, return winner
-    fn simulate(&self, current_state: &mut BoardState) -> GameResult {
+    /// Returns absolute win probability
+    fn simulate(&self, current_state: &mut BoardState) -> (GameResult, f64) {
         let eval = -if current_state.player == Player::White {
             NNUE.evaluate(
                 &current_state.player_a_accumulator,
@@ -185,18 +194,25 @@ impl MonteCarlo {
         }
         */
 
-        if eval < 0 {
-            if current_state.player == Player::White {
-                return GameResult::PlayerBWon;
+        // map to 0-1
+        let squished = f64::tanh(eval as f64 / 1_000.0);
+
+        if current_state.player == Player::White {
+            let probability = squished;
+            let winner = if probability > 0.0 {
+                GameResult::PlayerAWon
             } else {
-                return GameResult::PlayerAWon;
-            }
+                GameResult::PlayerBWon
+            };
+            return (winner, probability);
         } else {
-            if current_state.player == Player::White {
-                return GameResult::PlayerAWon;
+            let probability = -squished;
+            let winner = if probability > 0.0 {
+                GameResult::PlayerAWon
             } else {
-                return GameResult::PlayerBWon;
-            }
+                GameResult::PlayerBWon
+            };
+            return (winner, probability);
         }
 
         /*
@@ -216,7 +232,13 @@ impl MonteCarlo {
     }
 
     /// Phase 4, Backpropagation: Update ancestor statistics
-    fn backpropagate(&mut self, node_idx: usize, winner: GameResult, player_to_move: Player) {
+    fn backpropagate(
+        &mut self,
+        node_idx: usize,
+        winner: GameResult,
+        score: f64,
+        player_to_move: Player,
+    ) {
         let mut current_node: &mut MonteCarloNode = &mut self.nodes[node_idx];
         let mut player = player_to_move;
         loop {
@@ -231,6 +253,13 @@ impl MonteCarlo {
                 _ => {}
             }
 
+            let player_factor = if player_to_win == Player::White {
+                1.0
+            } else {
+                -1.0
+            };
+            current_node.score += score * player_factor;
+
             let parent_node_idx = current_node.parent_idx;
             if parent_node_idx.is_none() {
                 return;
@@ -242,9 +271,9 @@ impl MonteCarlo {
     }
 
     #[allow(dead_code)]
-    pub fn get_stats(&self) -> (usize, usize) {
+    pub fn get_stats(&self) -> (usize, usize, f64) {
         let root = &self.nodes[0];
 
-        (root.n_wins, root.n_plays)
+        (root.n_wins, root.n_plays, root.score)
     }
 }

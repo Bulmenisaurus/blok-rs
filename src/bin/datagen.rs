@@ -80,7 +80,7 @@ fn playout() -> Vec<[u32; 15]> {
 
     while board.game_result() == GameResult::InProgress {
         mcts.run_search(&board, "eval");
-        let (wins, plays) = mcts.get_stats();
+        let (wins, plays, _) = mcts.get_stats();
 
         let chosen_move = mcts.best_play().unwrap();
 

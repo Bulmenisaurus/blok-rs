@@ -23,7 +23,7 @@ fn main() {
 
         mcts.run_search(&board, "easy");
         let best_move = mcts.best_play().unwrap();
-        let (n_wins, n_plays) = mcts.get_stats();
+        let (n_wins, n_plays, _) = mcts.get_stats();
         mcts.clear();
 
         board.do_move(best_move);

@@ -6,6 +6,7 @@ pub struct MonteCarloNode {
 
     pub n_plays: usize,
     pub n_wins: usize,
+    pub score: f64,
 
     pub own_idx: usize,
     pub children: HashMap<u32, Option<usize>>,
@@ -22,6 +23,7 @@ impl MonteCarloNode {
             parent_idx,
             n_plays: 0,
             n_wins: 0,
+            score: 0.0,
             own_idx: idx,
             children,
         }
@@ -77,7 +79,7 @@ impl MonteCarloNode {
         let parent = self.parent_idx.expect("UCB1 not defined for root node");
         let parent = &all_nodes[parent];
 
-        self.n_wins as f64 / self.n_plays as f64
+        self.score / self.n_plays as f64
             + f64::sqrt(bias_param * f64::ln(parent.n_plays as f64) / self.n_plays as f64)
     }
 }
