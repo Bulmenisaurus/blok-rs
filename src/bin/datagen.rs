@@ -116,8 +116,6 @@ fn playout() -> Vec<[u32; 15]> {
         packed[14] |= result_bits << 30;
     }
 
-    println!("Packed positions: {:?}", packed_positions);
-
     packed_positions
 }
 
