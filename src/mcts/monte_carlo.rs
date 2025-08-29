@@ -1,7 +1,7 @@
 use rand::prelude::IndexedRandom;
 use rand::rng;
 
-use crate::board::{self, BoardState, GameResult, Player};
+use crate::board::{BoardState, GameResult, Player};
 use crate::mcts::MonteCarloNode;
 use crate::movegen::generate_moves;
 use crate::nn::NNUE;
@@ -35,7 +35,7 @@ impl MonteCarlo {
         self.make_root_node(state);
         let iterations = match difficulty {
             "test" => 1_000,
-            "eval" => 1_000,
+            "eval" => 5_000,
             "easy" => 10_000,
             "medium" => 20_000,
             "hard" => 100_000,
@@ -247,12 +247,6 @@ impl MonteCarlo {
             // need to inver it as the evaluation is from the perspective of the parent
             let player_to_win = player.other();
 
-            match (player_to_win, winner) {
-                (Player::White, GameResult::PlayerAWon)
-                | (Player::Black, GameResult::PlayerBWon) => current_node.n_wins += 1,
-                _ => {}
-            }
-
             let player_factor = if player_to_win == Player::White {
                 1.0
             } else {
@@ -271,9 +265,9 @@ impl MonteCarlo {
     }
 
     #[allow(dead_code)]
-    pub fn get_stats(&self) -> (usize, usize, f64) {
+    pub fn get_stats(&self) -> (usize, f64) {
         let root = &self.nodes[0];
 
-        (root.n_wins, root.n_plays, root.score)
+        (root.n_plays, root.score)
     }
 }

@@ -5,7 +5,6 @@ pub struct MonteCarloNode {
     pub parent_idx: Option<usize>,
 
     pub n_plays: usize,
-    pub n_wins: usize,
     pub score: f64,
 
     pub own_idx: usize,
@@ -22,7 +21,6 @@ impl MonteCarloNode {
         Self {
             parent_idx,
             n_plays: 0,
-            n_wins: 0,
             score: 0.0,
             own_idx: idx,
             children,
@@ -81,5 +79,10 @@ impl MonteCarloNode {
 
         self.score / self.n_plays as f64
             + f64::sqrt(bias_param * f64::ln(parent.n_plays as f64) / self.n_plays as f64)
+    }
+
+    /// used for datagen
+    pub fn get_approximate_n_win(&self) -> f64 {
+        (self.score + self.n_plays as f64) / 2.0
     }
 }

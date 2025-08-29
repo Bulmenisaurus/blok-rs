@@ -23,7 +23,8 @@ fn main() {
 
         mcts.run_search(&board, "easy");
         let best_move = mcts.best_play().unwrap();
-        let (n_wins, n_plays, _) = mcts.get_stats();
+        let (n_plays, score) = mcts.get_stats();
+        let approximate_wins = ((score + n_plays as f64) / 2.0) as usize;
         mcts.clear();
 
         board.do_move(best_move);
@@ -74,7 +75,7 @@ fn main() {
         };
 
         println!("Eval: {}", eval);
-        println!("Board: {:?}", pack(&board, n_wins, n_plays));
+        println!("Board: {:?}", pack(&board, approximate_wins, n_plays));
         println!();
     }
 }

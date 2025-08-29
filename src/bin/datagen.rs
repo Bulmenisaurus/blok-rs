@@ -80,17 +80,19 @@ fn playout() -> Vec<[u32; 15]> {
 
     while board.game_result() == GameResult::InProgress {
         mcts.run_search(&board, "eval");
-        let (wins, plays, _) = mcts.get_stats();
+        let (plays, score) = mcts.get_stats();
+
+        let approximate_wins = ((score + plays as f64) / 2.0) as usize;
 
         let chosen_move = mcts.best_play().unwrap();
 
         mcts.clear();
 
-        let packed = pack(&board, wins, plays);
+        let packed = pack(&board, approximate_wins, plays);
 
         // stop recording positions after the game is close to decided
 
-        let probability = wins as f64 / plays as f64;
+        let probability = (score / plays as f64 + 1.0) / 2.0;
 
         let should_stop = chosen_move == NULL_MOVE || probability < 0.1 || probability > 0.9;
         if !should_stop {
@@ -113,6 +115,8 @@ fn playout() -> Vec<[u32; 15]> {
         };
         packed[14] |= result_bits << 30;
     }
+
+    println!("Packed positions: {:?}", packed_positions);
 
     packed_positions
 }
