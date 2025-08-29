@@ -1,8 +1,10 @@
 /*
 This is how you would load the network in rust.
 Commented out because it will error if it can't find the file. */
+pub static NNUE: Network =
+    unsafe { std::mem::transmute(*include_bytes!("../../nn/quantised.bin")) };
 
-const HIDDEN_SIZE: usize = 128;
+const HIDDEN_SIZE: usize = 64;
 const SCALE: i32 = 1_000;
 const QA: i16 = 255;
 const QB: i16 = 64;

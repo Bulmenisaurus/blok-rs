@@ -21,10 +21,11 @@ fn main() {
             break;
         }
 
-        mcts.run_search(&board, "eval");
+        mcts.run_search(&board, "easy");
         let best_move = mcts.best_play().unwrap();
         let (n_wins, n_plays) = mcts.get_stats();
         mcts.clear();
+
         board.do_move(best_move);
 
         // now we must update the accumulators
@@ -67,13 +68,14 @@ fn main() {
         }
 
         let eval = if board.player == Player::White {
-            NNUE.evaluate(&player_a_accumulator, &player_b_accumulator)
+            NNUE.evaluate(&board.player_a_accumulator, &board.player_b_accumulator)
         } else {
-            NNUE.evaluate(&player_b_accumulator, &player_a_accumulator)
+            NNUE.evaluate(&board.player_b_accumulator, &board.player_a_accumulator)
         };
 
         println!("Eval: {}", eval);
         println!("Board: {:?}", pack(&board, n_wins, n_plays));
+        println!();
     }
 }
 

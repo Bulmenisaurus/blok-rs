@@ -1,9 +1,10 @@
 use rand::prelude::IndexedRandom;
 use rand::rng;
 
-use crate::board::{BoardState, GameResult, Player};
+use crate::board::{self, BoardState, GameResult, Player};
 use crate::mcts::MonteCarloNode;
 use crate::movegen::generate_moves;
+use crate::nn::NNUE;
 
 pub struct MonteCarlo {
     ucb1_explore_param: f64,
@@ -152,6 +153,53 @@ impl MonteCarlo {
 
     /// Phase 3, Simulation: Play game to terminal state, return winner
     fn simulate(&self, current_state: &mut BoardState) -> GameResult {
+        let eval = if current_state.player == Player::White {
+            NNUE.evaluate(
+                &current_state.player_a_accumulator,
+                &current_state.player_b_accumulator,
+            )
+        } else {
+            NNUE.evaluate(
+                &current_state.player_b_accumulator,
+                &current_state.player_a_accumulator,
+            )
+        };
+        /*
+        // idk bro
+
+        // losing, so other player wins
+        if eval < -200 {
+            if current_state.player == Player::White {
+                return GameResult::PlayerBWon;
+            } else {
+                return GameResult::PlayerAWon;
+            }
+        } else if eval > -200 && eval < 200 {
+            return GameResult::Draw;
+        } else {
+            if current_state.player == Player::White {
+                return GameResult::PlayerAWon;
+            } else {
+                return GameResult::PlayerBWon;
+            }
+        }
+        */
+
+        if eval < 0 {
+            if current_state.player == Player::White {
+                return GameResult::PlayerBWon;
+            } else {
+                return GameResult::PlayerAWon;
+            }
+        } else {
+            if current_state.player == Player::White {
+                return GameResult::PlayerAWon;
+            } else {
+                return GameResult::PlayerBWon;
+            }
+        }
+
+        /*
         let mut rng = rng();
         let mut state = current_state.clone();
 
@@ -164,6 +212,7 @@ impl MonteCarlo {
             let play = plays.choose(&mut rng).unwrap();
             state.do_move(*play);
         }
+        */
     }
 
     /// Phase 4, Backpropagation: Update ancestor statistics
