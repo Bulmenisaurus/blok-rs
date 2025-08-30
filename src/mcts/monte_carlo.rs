@@ -171,7 +171,7 @@ impl MonteCarlo {
 
         //TODO: this is like totally bsed no clue what the actual eval scale is...
         //TODO: in testing, both 1500 and 2500 worked well
-        let scale = if self.debug { 1500.0 } else { 1_500.0 };
+        let scale = 1500.0;
         let squished = f64::tanh(eval as f64 / scale);
 
         if current_state.player == Player::White {
