@@ -7,9 +7,9 @@ static NNUE: Network = unsafe { std::mem::transmute(*include_bytes!("../../nn/qu
 
 fn main() {
     // Create a new board in the default start position
-    let mut board = BoardState::new(StartPosition::Corner);
+    let mut board = BoardState::new(StartPosition::Corner, NNUE);
 
-    let mut mcts = MonteCarlo::new();
+    let mut mcts = MonteCarlo::new(NNUE);
 
     let mut player_a_accumulator = Accumulator::new(&NNUE);
     let mut player_b_accumulator = Accumulator::new(&NNUE);

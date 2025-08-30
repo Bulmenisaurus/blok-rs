@@ -4,6 +4,11 @@ Commented out because it will error if it can't find the file. */
 pub static NNUE: Network =
     unsafe { std::mem::transmute(*include_bytes!("../../nn/quantised.bin")) };
 
+/// Create a new Network instance from the binary data
+pub fn create_network() -> Network {
+    unsafe { std::mem::transmute(*include_bytes!("../../nn/quantised.bin")) }
+}
+
 const HIDDEN_SIZE: usize = 64;
 const SCALE: i32 = 1_000;
 const QA: i16 = 255;
@@ -18,6 +23,7 @@ fn crelu(x: i16) -> i32 {
 
 /// This is the quantised format that bullet outputs.
 #[repr(C)]
+#[derive(Clone, Copy)]
 pub struct Network {
     /// Column-Major `HIDDEN_SIZE x 768` matrix.
     feature_weights: [Accumulator; 392],

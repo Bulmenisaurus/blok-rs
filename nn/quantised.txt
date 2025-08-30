@@ -2,4 +2,6 @@ HIDDEN_SIZE 64
 wdl constant 0.70
 non inverted scores
 run for 40 superbatches
-on NNUE data (preliminary) (unmirrored)
+non NNUE data (nnue one sucked, not enough data ig)
+
+elo diff: ~70

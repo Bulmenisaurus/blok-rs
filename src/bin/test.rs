@@ -1,10 +1,11 @@
 use blok_rs::board::{BoardState, Player, StartPosition};
 
 use blok_rs::movegen::generate_moves;
+use blok_rs::nn::NNUE;
 
 fn main() {
     // Create a new board in the default start position
-    let mut board = BoardState::new(StartPosition::Corner);
+    let mut board = BoardState::new(StartPosition::Corner, NNUE);
 
     let moves = generate_moves(&board);
 

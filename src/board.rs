@@ -5,7 +5,7 @@ use crate::{
         Move, NULL_MOVE, ORIENTATION_DATA, PIECE_DATA, update_move_cache,
         update_move_cache_from_null_move,
     },
-    nn::{Accumulator, NNUE, Network},
+    nn::{Accumulator, Network},
 };
 
 #[repr(u8)]
@@ -95,10 +95,12 @@ pub struct BoardState {
 
     pub player_a_accumulator: Accumulator,
     pub player_b_accumulator: Accumulator,
+
+    network: Network,
 }
 
 impl BoardState {
-    pub fn new(start_position: StartPosition) -> Self {
+    pub fn new(start_position: StartPosition, network: Network) -> Self {
         Self {
             player: Player::White,
             player_a_remaining: 0x1fffff,
@@ -109,8 +111,9 @@ impl BoardState {
             start_position,
             player_a_corner_moves: HashMap::new(),
             player_b_corner_moves: HashMap::new(),
-            player_a_accumulator: Accumulator::new(&NNUE),
-            player_b_accumulator: Accumulator::new(&NNUE),
+            player_a_accumulator: Accumulator::new(&network),
+            player_b_accumulator: Accumulator::new(&network),
+            network,
         }
     }
 
@@ -186,7 +189,7 @@ impl BoardState {
                 } else {
                     ntm_offset + player_b_offset
                 },
-                &NNUE,
+                &self.network,
             );
 
             self.player_b_accumulator.add_feature(
@@ -195,7 +198,7 @@ impl BoardState {
                 } else {
                     ntm_offset + player_a_offset
                 },
-                &NNUE,
+                &self.network,
             );
         }
 

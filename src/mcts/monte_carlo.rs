@@ -4,25 +4,21 @@ use rand::rng;
 use crate::board::{BoardState, GameResult, Player};
 use crate::mcts::MonteCarloNode;
 use crate::movegen::generate_moves;
-use crate::nn::NNUE;
+use crate::nn::Network;
 
 pub struct MonteCarlo {
     ucb1_explore_param: f64,
     pub nodes: Vec<MonteCarloNode>,
-}
-
-impl Default for MonteCarlo {
-    fn default() -> Self {
-        Self::new()
-    }
+    network: Network,
 }
 
 impl MonteCarlo {
-    pub fn new() -> Self {
+    pub fn new(network: Network) -> Self {
         Self {
             //TODO: what actually was it
             ucb1_explore_param: 2.,
             nodes: Vec::new(),
+            network,
         }
     }
 
@@ -163,12 +159,12 @@ impl MonteCarlo {
     /// Returns absolute win probability
     fn simulate(&self, current_state: &mut BoardState) -> (GameResult, f64) {
         let eval = -if current_state.player == Player::White {
-            NNUE.evaluate(
+            self.network.evaluate(
                 &current_state.player_a_accumulator,
                 &current_state.player_b_accumulator,
             )
         } else {
-            NNUE.evaluate(
+            self.network.evaluate(
                 &current_state.player_b_accumulator,
                 &current_state.player_a_accumulator,
             )

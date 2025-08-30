@@ -5,6 +5,7 @@ mod nn;
 
 use futures_util::{SinkExt, StreamExt};
 use mcts::MonteCarlo;
+use nn::create_network;
 use serde::{Deserialize, Serialize};
 use tokio::net::{TcpListener, TcpStream};
 use tokio_tungstenite::tungstenite::Message;
@@ -27,8 +28,9 @@ async fn handle_websocket(ws_stream: WebSocketStream<TcpStream>) {
     let (mut ws_sender, mut ws_receiver) = ws_stream.split();
 
     // Run a quick MCTS test first
-    let mut board = board::BoardState::new(board::StartPosition::Corner);
-    let mut eval: MonteCarlo = MonteCarlo::new();
+    let network = create_network();
+    let mut board = board::BoardState::new(board::StartPosition::Corner, network.clone());
+    let mut eval: MonteCarlo = MonteCarlo::new(network);
     let mut game_difficulty: String = "hard".to_string();
 
     // Handle incoming messages

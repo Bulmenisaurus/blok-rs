@@ -3,12 +3,13 @@ use blok_rs::board::GameResult;
 use blok_rs::board::Score;
 use blok_rs::board::StartPosition;
 use blok_rs::movegen;
+use blok_rs::nn::NNUE;
 
 use serde_json;
 
 #[test]
 pub fn root_node_has_all_moves() {
-    let mut game = BoardState::new(StartPosition::Corner);
+    let mut game = BoardState::new(StartPosition::Corner, NNUE);
     let moves = movegen::generate_moves(&game);
 
     let expected_moves = vec![
@@ -79,7 +80,7 @@ pub fn game_length_movegen() {
     let test_data: Vec<Vec<Vec<u32>>> = serde_json::from_str(game_data).unwrap();
 
     for single_game_data in test_data {
-        let mut game = BoardState::new(StartPosition::Corner);
+        let mut game = BoardState::new(StartPosition::Corner, NNUE);
 
         for move_data in single_game_data {
             game.do_move(move_data[0]);
@@ -96,7 +97,7 @@ pub fn game_length_movegen() {
 
 #[test]
 pub fn root_node_middle_movegen() {
-    let game = BoardState::new(StartPosition::Middle);
+    let game = BoardState::new(StartPosition::Middle, NNUE);
     let mut moves = movegen::generate_moves(&game);
     moves.sort();
 
@@ -138,7 +139,7 @@ pub fn root_node_middle_movegen() {
 
 #[test]
 pub fn root_node_middle_blokee_movegen() {
-    let game = BoardState::new(StartPosition::MiddleBlokee);
+    let game = BoardState::new(StartPosition::MiddleBlokee, NNUE);
     let mut moves = movegen::generate_moves(&game);
     moves.sort();
 
@@ -172,7 +173,7 @@ pub fn test_score() {
 }
 
 fn playout_min(start_pos: StartPosition) -> Score {
-    let mut game = BoardState::new(start_pos);
+    let mut game = BoardState::new(start_pos, NNUE);
     while game.game_result() == GameResult::InProgress {
         let moves = movegen::generate_moves(&game);
         let min_move = moves.iter().min().unwrap();
