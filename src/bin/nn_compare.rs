@@ -8,10 +8,10 @@ use blok_rs::{
 };
 use rand::seq::IndexedRandom;
 
-static NNUE1: Network =
-    unsafe { std::mem::transmute(*include_bytes!("../../nn/quantised-nnue.bin")) };
+static NNUE1: Network = unsafe { std::mem::transmute(*include_bytes!("../../nn/quantised.bin")) };
 
-static NNUE2: Network = unsafe { std::mem::transmute(*include_bytes!("../../nn/quantised.bin")) };
+static NNUE2: Network =
+    unsafe { std::mem::transmute(*include_bytes!("../../nn/quantised-old.bin")) };
 
 fn main() {
     let mut nn1 = 0;
