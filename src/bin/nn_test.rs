@@ -3,8 +3,7 @@ use blok_rs::mcts::MonteCarlo;
 use blok_rs::movegen::{Move, NULL_MOVE, generate_moves};
 use blok_rs::nn::{Accumulator, Network};
 
-static NNUE: Network =
-    unsafe { std::mem::transmute(*include_bytes!("../../nn/quantised-large.bin")) };
+static NNUE: Network = unsafe { std::mem::transmute(*include_bytes!("../../nn/quantised.bin")) };
 
 fn main() {
     // Create a new board in the default start position

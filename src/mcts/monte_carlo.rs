@@ -17,7 +17,7 @@ impl MonteCarlo {
     pub fn new(network: Network, debug: bool) -> Self {
         Self {
             //TODO: what actually was it
-            ucb1_explore_param: if debug { 0.0 } else { 2.0 },
+            ucb1_explore_param: if debug { 0.2 } else { 0.0 },
             nodes: Vec::new(),
             network,
             debug,
