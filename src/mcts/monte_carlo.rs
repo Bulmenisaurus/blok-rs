@@ -108,7 +108,7 @@ impl MonteCarlo {
             for &play in &plays {
                 let child_node = &self.nodes[node.child_node(play)];
 
-                let child_ucb1 = child_node.get_ucb1(self.ucb1_explore_param, &self.nodes);
+                let child_ucb1 = child_node.get_ucb1();
                 if child_ucb1 > best_ucb1 || best_play.is_none() {
                     best_play = Some(play);
                     best_ucb1 = child_ucb1;

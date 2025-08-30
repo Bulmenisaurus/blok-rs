@@ -28,8 +28,9 @@ fn main() {
         let batch_end = (batch_start + batch_size).min(total_games);
 
         // Collect batch results
+        eprintln!("WARNING! parallel is off");
         let results: Vec<Vec<[u32; 15]>> = (batch_start..batch_end)
-            .into_par_iter()
+            .into_iter()
             .map(|_| playout())
             .collect();
 

@@ -73,11 +73,8 @@ impl MonteCarloNode {
         self.children.is_empty()
     }
 
-    pub fn get_ucb1(&self, bias_param: f64, all_nodes: &[MonteCarloNode]) -> f64 {
-        let parent = self.parent_idx.expect("UCB1 not defined for root node");
-        let parent = &all_nodes[parent];
-
+    pub fn get_ucb1(&self) -> f64 {
+        // bias parameter is 0
         self.score / self.n_plays as f64
-            + f64::sqrt(bias_param * f64::ln(parent.n_plays as f64) / self.n_plays as f64)
     }
 }
