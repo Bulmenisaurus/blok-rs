@@ -62,7 +62,7 @@ fn main() {
 
 fn playout() -> Vec<[u32; 15]> {
     let mut board = BoardState::new(StartPosition::Corner, NNUE);
-    let mut mcts = MonteCarlo::new(NNUE);
+    let mut mcts = MonteCarlo::new(NNUE, false);
     let mut rng = rand::rng();
 
     let mut packed_positions: Vec<[u32; 15]> = Vec::new();

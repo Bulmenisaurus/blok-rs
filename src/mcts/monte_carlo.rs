@@ -10,15 +10,17 @@ pub struct MonteCarlo {
     ucb1_explore_param: f64,
     pub nodes: Vec<MonteCarloNode>,
     network: Network,
+    debug: bool,
 }
 
 impl MonteCarlo {
-    pub fn new(network: Network) -> Self {
+    pub fn new(network: Network, debug: bool) -> Self {
         Self {
             //TODO: what actually was it
             ucb1_explore_param: 2.,
             nodes: Vec::new(),
             network,
+            debug,
         }
     }
 

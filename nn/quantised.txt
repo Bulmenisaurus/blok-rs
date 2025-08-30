@@ -2,6 +2,6 @@ HIDDEN_SIZE 64
 wdl constant 0.70
 non inverted scores
 run for 40 superbatches
-nnue data, mirrored
+nnue data & old data, with mirrored (~11m positions)
 
-elo diff: 4
+elo diff: 30

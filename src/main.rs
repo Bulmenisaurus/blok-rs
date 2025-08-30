@@ -29,7 +29,7 @@ async fn handle_websocket(ws_stream: WebSocketStream<TcpStream>) {
     let (mut ws_sender, mut ws_receiver) = ws_stream.split();
 
     let mut board = board::BoardState::new(board::StartPosition::Corner, NNUE);
-    let mut eval: MonteCarlo = MonteCarlo::new(NNUE);
+    let mut eval: MonteCarlo = MonteCarlo::new(NNUE, false);
     let mut game_difficulty: String = "hard".to_string();
 
     // Handle incoming messages

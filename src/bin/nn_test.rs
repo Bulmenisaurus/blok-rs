@@ -3,13 +3,14 @@ use blok_rs::mcts::MonteCarlo;
 use blok_rs::movegen::{Move, NULL_MOVE, generate_moves};
 use blok_rs::nn::{Accumulator, Network};
 
-static NNUE: Network = unsafe { std::mem::transmute(*include_bytes!("../../nn/quantised.bin")) };
+static NNUE: Network =
+    unsafe { std::mem::transmute(*include_bytes!("../../nn/quantised-large.bin")) };
 
 fn main() {
     // Create a new board in the default start position
     let mut board = BoardState::new(StartPosition::Corner, NNUE);
 
-    let mut mcts = MonteCarlo::new(NNUE);
+    let mut mcts = MonteCarlo::new(NNUE, false);
 
     let mut player_a_accumulator = Accumulator::new(&NNUE);
     let mut player_b_accumulator = Accumulator::new(&NNUE);

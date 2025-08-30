@@ -6,7 +6,7 @@ use blok_rs::nn::NNUE;
 #[test]
 pub fn is_valid_tree() {
     let game = BoardState::new(StartPosition::Corner, NNUE);
-    let mut mcts = MonteCarlo::new(NNUE);
+    let mut mcts = MonteCarlo::new(NNUE, false);
     mcts.run_search(&game, "test");
 
     // assert!(is_valid_node(&mcts.nodes, &mcts.nodes[2]));

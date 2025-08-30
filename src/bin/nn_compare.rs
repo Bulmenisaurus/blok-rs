@@ -18,7 +18,7 @@ fn main() {
     let mut nn2 = 0;
     let mut draws = 0;
 
-    for i in 0..100 {
+    for i in 0..50 {
         let (nn1_score, nn2_score, draws_score) = compare_nn();
         nn1 += nn1_score;
         nn2 += nn2_score;
@@ -34,9 +34,9 @@ fn main() {
 
 fn compare_nn() -> (i32, i32, i32) {
     let mut b1_opening = BoardState::new(StartPosition::Corner, NNUE1);
-    let mut mcts1 = MonteCarlo::new(NNUE1);
+    let mut mcts1 = MonteCarlo::new(NNUE1, false);
     let mut b2_opening = BoardState::new(StartPosition::Corner, NNUE2);
-    let mut mcts2 = MonteCarlo::new(NNUE2);
+    let mut mcts2 = MonteCarlo::new(NNUE2, false);
 
     let mut rng = rand::rng();
 
