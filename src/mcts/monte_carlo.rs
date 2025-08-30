@@ -16,8 +16,7 @@ pub struct MonteCarlo {
 impl MonteCarlo {
     pub fn new(network: Network, debug: bool) -> Self {
         Self {
-            //TODO: what actually was it
-            ucb1_explore_param: if debug { 0.2 } else { 0.0 },
+            ucb1_explore_param: 0.0,
             nodes: Vec::new(),
             network,
             debug,
@@ -171,7 +170,9 @@ impl MonteCarlo {
         };
 
         //TODO: this is like totally bsed no clue what the actual eval scale is...
-        let squished = f64::tanh(eval as f64 / 1_000.0);
+        //TODO: in testing, both 1500 and 2500 worked well
+        let scale = if self.debug { 1500.0 } else { 1_500.0 };
+        let squished = f64::tanh(eval as f64 / scale);
 
         if current_state.player == Player::White {
             squished

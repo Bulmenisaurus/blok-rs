@@ -14,7 +14,7 @@ static NNUE1: Network = unsafe { std::mem::transmute(*include_bytes!("../../nn/q
 static NNUE2: Network = unsafe { std::mem::transmute(*include_bytes!("../../nn/quantised.bin")) };
 
 fn main() {
-    let num_games = 50;
+    let num_games = 200;
 
     // Run all games in parallel
     let results: Vec<(i32, i32, i32)> = (0..num_games)
