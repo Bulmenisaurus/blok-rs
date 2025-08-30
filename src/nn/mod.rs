@@ -1,13 +1,7 @@
-/*
-This is how you would load the network in rust.
-Commented out because it will error if it can't find the file. */
+// NOTE: a lot of this is copied from https://github.com/jw1912/bullet/blob/d009365d88c51c34c4cf91fe233d0171938e387e/examples/simple.rs
+
 pub static NNUE: Network =
     unsafe { std::mem::transmute(*include_bytes!("../../nn/quantised.bin")) };
-
-/// Create a new Network instance from the binary data
-pub fn create_network() -> Network {
-    unsafe { std::mem::transmute(*include_bytes!("../../nn/quantised.bin")) }
-}
 
 const HIDDEN_SIZE: usize = 64;
 const SCALE: i32 = 1_000;
@@ -25,7 +19,7 @@ fn crelu(x: i16) -> i32 {
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct Network {
-    /// Column-Major `HIDDEN_SIZE x 768` matrix.
+    /// Column-Major `HIDDEN_SIZE x 392` matrix.
     feature_weights: [Accumulator; 392],
     /// Vector with dimension `HIDDEN_SIZE`.
     feature_bias: Accumulator,
@@ -90,14 +84,5 @@ impl Accumulator {
         }
     }
 
-    /// Remove a feature from an accumulator.
-    pub fn remove_feature(&mut self, feature_idx: usize, net: &Network) {
-        for (i, d) in self
-            .vals
-            .iter_mut()
-            .zip(&net.feature_weights[feature_idx].vals)
-        {
-            *i -= *d
-        }
-    }
+    // Note: there was a remove_feature, but we don't ever undo moves so it's not needed
 }

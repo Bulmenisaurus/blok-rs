@@ -50,11 +50,9 @@ impl MonteCarlo {
                 let new_node_idx = self.expand(node_idx, tree_state);
                 // the player to move on the expanded state, before the simulation (used to update the correct n_wins during backpropagation)
                 let player = tree_state.player;
-                let (winner, probability) = self.simulate(tree_state);
+                let probability = self.simulate(tree_state);
 
-                //println!("winner: {:?}, probability: {}", winner, probability);
-
-                self.backpropagate(new_node_idx, winner, probability, player);
+                self.backpropagate(new_node_idx, probability, player);
             } else {
                 let effective_probability = match winner {
                     GameResult::PlayerAWon => 1.0,
@@ -62,7 +60,7 @@ impl MonteCarlo {
                     GameResult::Draw => 0.0,
                     GameResult::InProgress => unreachable!(),
                 };
-                self.backpropagate(node_idx, winner, effective_probability, tree_state.player);
+                self.backpropagate(node_idx, effective_probability, tree_state.player);
             }
         }
     }
@@ -155,9 +153,9 @@ impl MonteCarlo {
         new_idx
     }
 
-    /// Phase 3, Simulation: Play game to terminal state, return winner
-    /// Returns absolute win probability
-    fn simulate(&self, current_state: &mut BoardState) -> (GameResult, f64) {
+    /// Phase 3, Simulation. Instead of a playout as we would do in the simplest MCTS, now we use a neural network to evaluate the position
+    fn simulate(&self, current_state: &mut BoardState) -> f64 {
+        //TODO: this evaluation is negated, I think because in the training data I mistakenly negated evals?
         let eval = -if current_state.player == Player::White {
             self.network.evaluate(
                 &current_state.player_a_accumulator,
@@ -169,72 +167,19 @@ impl MonteCarlo {
                 &current_state.player_a_accumulator,
             )
         };
-        /*
-        // idk bro
 
-        // losing, so other player wins
-        if eval < -200 {
-            if current_state.player == Player::White {
-                return GameResult::PlayerBWon;
-            } else {
-                return GameResult::PlayerAWon;
-            }
-        } else if eval > -200 && eval < 200 {
-            return GameResult::Draw;
-        } else {
-            if current_state.player == Player::White {
-                return GameResult::PlayerAWon;
-            } else {
-                return GameResult::PlayerBWon;
-            }
-        }
-        */
-
-        // map to 0-1
+        //TODO: this is like totally bsed no clue what the actual eval scale is...
         let squished = f64::tanh(eval as f64 / 1_000.0);
 
         if current_state.player == Player::White {
-            let probability = squished;
-            let winner = if probability > 0.0 {
-                GameResult::PlayerAWon
-            } else {
-                GameResult::PlayerBWon
-            };
-            return (winner, probability);
+            squished
         } else {
-            let probability = -squished;
-            let winner = if probability > 0.0 {
-                GameResult::PlayerAWon
-            } else {
-                GameResult::PlayerBWon
-            };
-            return (winner, probability);
+            -squished
         }
-
-        /*
-        let mut rng = rng();
-        let mut state = current_state.clone();
-
-        loop {
-            let winner = state.game_result();
-            if winner != GameResult::InProgress {
-                return winner;
-            }
-            let plays = generate_moves(&state);
-            let play = plays.choose(&mut rng).unwrap();
-            state.do_move(*play);
-        }
-        */
     }
 
     /// Phase 4, Backpropagation: Update ancestor statistics
-    fn backpropagate(
-        &mut self,
-        node_idx: usize,
-        winner: GameResult,
-        score: f64,
-        player_to_move: Player,
-    ) {
+    fn backpropagate(&mut self, node_idx: usize, score: f64, player_to_move: Player) {
         let mut current_node: &mut MonteCarloNode = &mut self.nodes[node_idx];
         let mut player = player_to_move;
         loop {

@@ -4,7 +4,7 @@ use blok_rs::{
     board::{BoardState, GameResult, Player, StartPosition},
     mcts::MonteCarlo,
     movegen::generate_moves,
-    nn::{NNUE, Network},
+    nn::Network,
 };
 use rand::seq::IndexedRandom;
 
@@ -113,27 +113,5 @@ fn compare_nn() -> (i32, i32, i32) {
         draws += 1;
     }
 
-    return (nnue1_score, nnue2_score, draws);
-}
-
-fn pack(board: &BoardState, n_wins: usize, n_plays: usize) -> [u32; 15] {
-    let mut packed: [u32; 15] = [0; 15];
-
-    #[allow(clippy::needless_range_loop)]
-    for i in 0..14 {
-        let player_a_data = board.player_a_bit_board[i];
-        let player_b_data = board.player_b_bit_board[i];
-
-        packed[i] = player_a_data as u32 | (player_b_data as u32) << 16;
-    }
-    // n_wins, n_plays each take 14 bits (so max of 2^14 =)
-    // use the top two bits to store result (00 = win, 01 = loss, 10 = tie)
-
-    let side_to_move = match board.player {
-        Player::White => 0,
-        Player::Black => 1,
-    };
-
-    packed[14] = n_plays as u32 | (n_wins as u32) << 14 | side_to_move << 28;
-    packed
+    (nnue1_score, nnue2_score, draws)
 }

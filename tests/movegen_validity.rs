@@ -5,7 +5,6 @@ use blok_rs::board::StartPosition;
 use blok_rs::movegen;
 use blok_rs::nn::NNUE;
 
-use serde_json;
 
 #[test]
 pub fn root_node_has_all_moves() {

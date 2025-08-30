@@ -80,9 +80,4 @@ impl MonteCarloNode {
         self.score / self.n_plays as f64
             + f64::sqrt(bias_param * f64::ln(parent.n_plays as f64) / self.n_plays as f64)
     }
-
-    /// used for datagen
-    pub fn get_approximate_n_win(&self) -> f64 {
-        (self.score + self.n_plays as f64) / 2.0
-    }
 }

@@ -95,7 +95,7 @@ fn playout() -> Vec<[u32; 15]> {
 
         let probability = (score / plays as f64 + 1.0) / 2.0;
 
-        let should_stop = chosen_move == NULL_MOVE || probability < 0.1 || probability > 0.9;
+        let should_stop = chosen_move == NULL_MOVE || !(0.1..=0.9).contains(&probability);
         if !should_stop {
             packed_positions.push(packed);
         }

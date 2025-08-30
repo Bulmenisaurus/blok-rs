@@ -4,7 +4,7 @@ use blok_rs::mcts::MonteCarlo;
 use blok_rs::nn::NNUE;
 
 pub fn main() {
-    let mut board = BoardState::new(StartPosition::Corner, NNUE);
+    let board = BoardState::new(StartPosition::Corner, NNUE);
     // board.do_move(0);
     let mut mcts = MonteCarlo::new(NNUE);
 

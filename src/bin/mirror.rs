@@ -32,7 +32,7 @@ fn transform(packed: [u8; 60]) -> [u8; 60] {
     let out_bytes: [u8; PACKED_SIZE] =
         unsafe { mem::transmute::<Packed, [u8; PACKED_SIZE]>(Packed { data: output }) };
 
-    return out_bytes;
+    out_bytes
 }
 
 fn main() {

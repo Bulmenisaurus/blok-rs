@@ -27,8 +27,8 @@ pub fn is_valid_node(all_nodes: &Vec<MonteCarloNode>, node: &MonteCarloNode) -> 
 
     // All nodes except the root node should have one more visit than the sum of the visits to the children (because of the visits to any child was it iself)
     if node.own_idx == 0 {
-        return visits == children_visits;
+        visits == children_visits
     } else {
-        return visits == children_visits + 1;
+        visits == children_visits + 1
     }
 }
