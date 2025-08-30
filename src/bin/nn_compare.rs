@@ -7,26 +7,30 @@ use blok_rs::{
     nn::Network,
 };
 use rand::seq::IndexedRandom;
+use rayon::prelude::*;
 
 static NNUE1: Network = unsafe { std::mem::transmute(*include_bytes!("../../nn/quantised.bin")) };
 
-static NNUE2: Network =
-    unsafe { std::mem::transmute(*include_bytes!("../../nn/quantised-old.bin")) };
+static NNUE2: Network = unsafe { std::mem::transmute(*include_bytes!("../../nn/quantised.bin")) };
 
 fn main() {
+    let num_games = 50;
+
+    // Run all games in parallel
+    let results: Vec<(i32, i32, i32)> = (0..num_games)
+        .into_par_iter()
+        .map(|_| compare_nn())
+        .collect();
+
+    // Aggregate results
     let mut nn1 = 0;
     let mut nn2 = 0;
     let mut draws = 0;
 
-    for i in 0..50 {
-        let (nn1_score, nn2_score, draws_score) = compare_nn();
+    for (nn1_score, nn2_score, draws_score) in results.iter() {
         nn1 += nn1_score;
         nn2 += nn2_score;
         draws += draws_score;
-        println!(
-            "Game {}: NN1: {}, NN2: {}, Draws: {}",
-            i, nn1_score, nn2_score, draws_score
-        );
     }
 
     println!("Final result: NN1: {}, NN2: {}, Draws: {}", nn1, nn2, draws);
@@ -36,7 +40,7 @@ fn compare_nn() -> (i32, i32, i32) {
     let mut b1_opening = BoardState::new(StartPosition::Corner, NNUE1);
     let mut mcts1 = MonteCarlo::new(NNUE1, false);
     let mut b2_opening = BoardState::new(StartPosition::Corner, NNUE2);
-    let mut mcts2 = MonteCarlo::new(NNUE2, false);
+    let mut mcts2 = MonteCarlo::new(NNUE2, true);
 
     let mut rng = rand::rng();
 
@@ -112,6 +116,11 @@ fn compare_nn() -> (i32, i32, i32) {
     } else {
         draws += 1;
     }
+
+    println!(
+        "Game: NN1: {}, NN2: {}, Draws: {}",
+        nnue1_score, nnue2_score, draws
+    );
 
     (nnue1_score, nnue2_score, draws)
 }

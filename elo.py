@@ -36,9 +36,10 @@ def elo_diff_from_results(wins, draws, losses, confidence=0.95):
 
 # Example usage:
 if __name__ == "__main__":
-    wins = int(input("Enter number of wins: "))
-    draws = int(input("Enter number of draws: "))
-    losses = int(input("Enter number of losses: "))
+    # eval to allow arithmetic
+    wins = eval(input("Enter number of wins: "))
+    losses = eval(input("Enter number of losses: "))
+    draws = eval(input("Enter number of draws: "))
     elo, ci = elo_diff_from_results(wins, draws, losses)
     print(f"Elo difference estimate: {elo:.1f}")
     print(f"95% confidence interval: [{ci[0]:.1f}, {ci[1]:.1f}]")
