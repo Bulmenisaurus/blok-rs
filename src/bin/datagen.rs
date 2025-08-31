@@ -21,16 +21,15 @@ fn main() {
     let total_written = AtomicU64::new(0);
 
     // Process in batches to allow periodic writes
-    let batch_size = 100; // Adjust based on your needs
-    let total_games = 5usize;
+    let batch_size = 1000; // Adjust based on your needs
+    let total_games = 100_000usize;
 
     for batch_start in (0..total_games).step_by(batch_size) {
         let batch_end = (batch_start + batch_size).min(total_games);
 
         // Collect batch results
-        eprintln!("WARNING! parallel is off");
         let results: Vec<Vec<[u32; 15]>> = (batch_start..batch_end)
-            .into_iter()
+            .into_par_iter()
             .map(|_| playout())
             .collect();
 
