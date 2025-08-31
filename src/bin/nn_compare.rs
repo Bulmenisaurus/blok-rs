@@ -8,32 +8,75 @@ use blok_rs::{
 };
 use rand::seq::IndexedRandom;
 use rayon::prelude::*;
+use std::io::{self, Write};
 
 static NNUE1: Network = unsafe { std::mem::transmute(*include_bytes!("../../nn/quantised.bin")) };
 
-static NNUE2: Network = unsafe { std::mem::transmute(*include_bytes!("../../nn/quantised.bin")) };
+static NNUE2: Network =
+    unsafe { std::mem::transmute(*include_bytes!("../../nn/quantised-old.bin")) };
 
 fn main() {
     let num_games = 200;
+    let mut total_nn1 = 0;
+    let mut total_nn2 = 0;
+    let mut total_draws = 0;
+    let mut run_count = 0;
 
-    // Run all games in parallel
-    let results: Vec<(i32, i32, i32)> = (0..num_games)
-        .into_par_iter()
-        .map(|_| compare_nn())
-        .collect();
+    loop {
+        run_count += 1;
+        println!("Starting run #{} ({} games)...", run_count, num_games);
 
-    // Aggregate results
-    let mut nn1 = 0;
-    let mut nn2 = 0;
-    let mut draws = 0;
+        // Run all games in parallel
+        let results: Vec<(i32, i32, i32)> = (0..num_games)
+            .into_par_iter()
+            .map(|_| compare_nn())
+            .collect();
 
-    for (nn1_score, nn2_score, draws_score) in results.iter() {
-        nn1 += nn1_score;
-        nn2 += nn2_score;
-        draws += draws_score;
+        // Aggregate results for this run
+        let mut nn1 = 0;
+        let mut nn2 = 0;
+        let mut draws = 0;
+
+        for (nn1_score, nn2_score, draws_score) in results.iter() {
+            nn1 += nn1_score;
+            nn2 += nn2_score;
+            draws += draws_score;
+        }
+
+        total_nn1 += nn1;
+        total_nn2 += nn2;
+        total_draws += draws;
+
+        println!(
+            "Run #{} result: NN1: {}, NN2: {}, Draws: {}",
+            run_count, nn1, nn2, draws
+        );
+        println!(
+            "Cumulative result after {} runs ({} games): NN1: {}, NN2: {}, Draws: {}",
+            run_count,
+            run_count * num_games,
+            total_nn1,
+            total_nn2,
+            total_draws
+        );
+
+        print!(
+            "Do you want to run another set of {} games? (y/n): ",
+            num_games
+        );
+        io::stdout().flush().unwrap();
+
+        let mut input = String::new();
+        if io::stdin().read_line(&mut input).is_err() {
+            println!("Failed to read input, exiting.");
+            break;
+        }
+        let input = input.trim().to_lowercase();
+        if input != "y" && input != "yes" {
+            println!("Exiting.");
+            break;
+        }
     }
-
-    println!("Final result: NN1: {}, NN2: {}, Draws: {}", nn1, nn2, draws);
 }
 
 fn compare_nn() -> (i32, i32, i32) {
@@ -117,6 +160,7 @@ fn compare_nn() -> (i32, i32, i32) {
         draws += 1;
     }
 
+    // Optionally print per-game stats here if desired
     println!(
         "Game: NN1: {}, NN2: {}, Draws: {}",
         nnue1_score, nnue2_score, draws

@@ -1,7 +1,5 @@
 HIDDEN_SIZE 64
 wdl constant 0.70
-non inverted scores
 run for 40 superbatches
 nnue data & old data, with mirrored (~11m positions)
-
-elo diff: 30
+Cosine decay scheduler

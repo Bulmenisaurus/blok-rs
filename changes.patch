@@ -1,0 +1,42 @@
+diff --git a/src/mcts/monte_carlo.rs b/src/mcts/monte_carlo.rs
+index 159dc93..40d4559 100644
+--- a/src/mcts/monte_carlo.rs
++++ b/src/mcts/monte_carlo.rs
+@@ -3,7 +3,7 @@ use rand::rng;
+ 
+ use crate::board::{BoardState, GameResult, Player};
+ use crate::mcts::MonteCarloNode;
+-use crate::movegen::generate_moves;
++use crate::movegen::{Move, generate_moves};
+ use crate::nn::Network;
+ 
+ pub struct MonteCarlo {
+@@ -135,11 +135,24 @@ impl MonteCarlo {
+         let node: &mut MonteCarloNode = &mut self.nodes[node_idx];
+         let plays = node.unexpanded_plays();
+ 
+-        // Pick a random move from the unexpanded plays
+-
+-        let mut rng = rng();
+-        let &random_move = plays.choose(&mut rng).expect("No moves to choose from");
++        //padding because of null move which are 31
++        let lengths: [u32; 32] = [
++            5, 5, 5, 3, 5, 5, 5, 5, 5, 5, 5, 5, 4, 4, 4, 4, 1, 2, 3, 4, 5, 0, 0, 0, 0, 0, 0, 0, 0,
++            0, 0, 0,
++        ];
+ 
++        // Pick a random move from the unexpanded plays
++        let &random_move = if self.debug {
++            // choose the move with the most tiles
++            let max = plays
++                .iter()
++                .max_by_key(|&m| lengths[Move::get_movetype(*m) as usize])
++                .unwrap();
++            max
++        } else {
++            let mut rng = rng();
++            plays.choose(&mut rng).expect("No moves to choose from")
++        };
+         // update the state
+         current_state.do_move(random_move);
+ 
