@@ -15,14 +15,19 @@ use std::{
     time::Instant,
 };
 
+const TOTAL_GAMES: usize = 100_000;
+const BATCH_SIZE: usize = 1000;
+const START_POSITION: StartPosition = StartPosition::Corner;
+const OPENING_PLIES: usize = 6;
+
 fn main() {
     let start = Instant::now();
     let mut file = BufWriter::new(File::create("data.bin").unwrap());
     let total_written = AtomicU64::new(0);
 
     // Process in batches to allow periodic writes
-    let batch_size = 1000; // Adjust based on your needs
-    let total_games = 100_000usize;
+    let batch_size = BATCH_SIZE; // Adjust based on your needs
+    let total_games = TOTAL_GAMES;
 
     for batch_start in (0..total_games).step_by(batch_size) {
         let batch_end = (batch_start + batch_size).min(total_games);
@@ -61,23 +66,18 @@ fn main() {
 }
 
 fn playout() -> Vec<[u32; 15]> {
-    let mut board = BoardState::new(StartPosition::Corner, NNUE);
+    let mut board = BoardState::new(START_POSITION, NNUE);
     let mut mcts = MonteCarlo::new(NNUE, false);
     let mut rng = rand::rng();
 
     let mut packed_positions: Vec<[u32; 15]> = Vec::new();
 
     // opening: skip opening moves
-    for _ in 0..6 {
+    for _ in 0..OPENING_PLIES {
         let moves = generate_moves(&board);
         let random_move = moves.choose(&mut rng).unwrap();
         board.do_move(*random_move);
     }
-
-    // let bad_opening = vec![32768, 67152, 34953, 69168, 6162, 70730];
-    // for m in bad_opening {
-    //     board.do_move(m);
-    // }
 
     while board.game_result() == GameResult::InProgress {
         mcts.run_search(&board, "eval");

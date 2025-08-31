@@ -1,3 +1,5 @@
+use std::time::{Duration, Instant};
+
 use rand::prelude::IndexedRandom;
 use rand::rng;
 
@@ -40,6 +42,38 @@ impl MonteCarlo {
         };
 
         for _ in 0..iterations {
+            let tree_state: &mut BoardState = &mut state.clone();
+
+            let node_idx = self.select(tree_state);
+            let node = &self.nodes[node_idx];
+
+            let winner = tree_state.game_result();
+
+            if !node.is_leaf() && winner == GameResult::InProgress {
+                let new_node_idx = self.expand(node_idx, tree_state);
+                // the player to move on the expanded state, before the simulation (used to update the correct n_wins during backpropagation)
+                let player = tree_state.player;
+                let probability = self.simulate(tree_state);
+
+                self.backpropagate(new_node_idx, probability, player);
+            } else {
+                let effective_probability = match winner {
+                    GameResult::PlayerAWon => 1.0,
+                    GameResult::PlayerBWon => -1.0,
+                    GameResult::Draw => 0.0,
+                    GameResult::InProgress => unreachable!(),
+                };
+                self.backpropagate(node_idx, effective_probability, tree_state.player);
+            }
+        }
+    }
+
+    pub fn run_search_timeout(&mut self, state: &BoardState, timeout: usize) {
+        self.make_root_node(state);
+
+        let start_time = Instant::now();
+
+        while Instant::now() - start_time < Duration::from_millis(timeout as u64) {
             let tree_state: &mut BoardState = &mut state.clone();
 
             let node_idx = self.select(tree_state);
