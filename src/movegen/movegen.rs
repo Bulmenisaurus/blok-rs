@@ -111,9 +111,7 @@ pub fn is_move_pseudolegal(board: &BoardState, m: u32) -> bool {
         return true;
     }
     let player = Move::get_player(m);
-    let location = Move::get_location(m);
     let movetype = Move::get_movetype(m);
-    let orientation = Move::get_orientation(m);
 
     let my_remaining = if player == 0 {
         board.player_a_remaining
@@ -123,12 +121,6 @@ pub fn is_move_pseudolegal(board: &BoardState, m: u32) -> bool {
 
     // check if this move has already been placed
     if my_remaining & (1u32 << movetype) == 0 {
-        return false;
-    }
-
-    // check if it is outside of the board
-    let (bx, by) = SHORT_BOUNDING_BOX_DATA[movetype as usize][orientation as usize];
-    if location.x + bx > 13 || location.y + by > 13 {
         return false;
     }
 
@@ -311,7 +303,6 @@ pub fn generate_moves(board: &BoardState) -> Vec<u32> {
     };
 
     let mut unique_moves: Vec<u32> = my_corner_moves.values().flatten().cloned().collect();
-    println!("unique_moves: {}", unique_moves.len());
     unique_moves.sort_unstable();
     unique_moves.dedup();
 
