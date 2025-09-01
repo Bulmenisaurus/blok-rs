@@ -309,7 +309,7 @@ pub fn generate_moves(board: &BoardState) -> Vec<u32> {
         .filter(|m| is_move_legal(board, *m))
         .collect();
 
-    unique_moves.sort();
+    unique_moves.sort_unstable();
     unique_moves.dedup();
 
     if unique_moves.is_empty() {
