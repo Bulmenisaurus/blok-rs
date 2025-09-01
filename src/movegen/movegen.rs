@@ -318,41 +318,28 @@ pub fn generate_moves(board: &BoardState) -> Vec<u32> {
     filtered
 }
 
+// At this point our move generation is so lazy we just add all moves, then filter later
 pub fn get_legal_moves_from(
     from: Coord,
     movetype: u8,
     board: &BoardState,
     legal_moves: &mut Vec<u32>,
 ) {
-    let orientation_data = &ORIENTATION_DATA[movetype as usize];
-
-    for i in 0..orientation_data.len() {
-        let corners = &CORNERS_DATA[movetype as usize][i];
+    for (i, corners) in CORNERS_DATA[movetype as usize].iter().enumerate() {
         for corner in corners {
             if from.x < corner.x || from.y < corner.y {
                 continue;
             }
 
-            let coord = Coord {
-                x: from.x - corner.x,
-                y: from.y - corner.y,
-            };
-
-            if !coord.in_bounds() {
-                continue;
-            }
-
             let mov = Move {
                 orientation: i as u8,
-                y: coord.y,
-                x: coord.x,
+                y: from.y - corner.y,
+                x: from.x - corner.x,
                 player: board.player as u8,
                 movetype,
             };
 
-            if is_move_pseudolegal(board, mov.pack()) {
-                legal_moves.push(mov.pack());
-            }
+            legal_moves.push(mov.pack());
         }
     }
 }
