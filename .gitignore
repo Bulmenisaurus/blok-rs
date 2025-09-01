@@ -8,3 +8,4 @@ profile.json.gz
 *.bin.gz
 
 !nn/quantised.bin
+executables/
