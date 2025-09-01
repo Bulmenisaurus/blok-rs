@@ -8,7 +8,7 @@ pub fn main() {
     // board.do_move(0);
     let mut mcts = MonteCarlo::new(NNUE, false);
 
-    mcts.run_search(&board, "test");
+    mcts.run_search(&board, "easy");
     let best_move = mcts.best_play().unwrap();
     let (plays, score) = mcts.get_stats();
     println!(
