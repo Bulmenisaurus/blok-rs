@@ -13,7 +13,7 @@ pub struct MonteCarloNode {
 
 impl MonteCarloNode {
     pub fn new(idx: usize, parent_idx: Option<usize>, unexpanded_plays: Vec<u32>) -> Self {
-        let mut children = HashMap::new();
+        let mut children = HashMap::with_capacity(unexpanded_plays.len());
         for play in unexpanded_plays {
             children.insert(play, None);
         }

@@ -33,7 +33,7 @@ impl MonteCarlo {
     pub fn run_search(&mut self, state: &BoardState, difficulty: &str) {
         self.make_root_node(state);
         let iterations = match difficulty {
-            "test" => 1_000,
+            "test" => 5_000,
             "eval" => 5_000,
             "easy" => 10_000,
             "medium" => 20_000,
