@@ -22,7 +22,7 @@ impl MonteCarlo {
     pub fn new() -> Self {
         Self {
             //TODO: what actually was it
-            ucb1_explore_param: 2.,
+            ucb1_explore_param: 0.,
             nodes: Vec::new(),
         }
     }

@@ -7,3 +7,5 @@ profile.json.gz
 *.bin.gz
 
 .venv
+
+executables/
