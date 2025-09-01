@@ -204,7 +204,56 @@ impl BoardState {
 
         self.null_move_counter = 0;
         // note: update move cache calls skip_turn
-        update_move_cache(self, board_move);
+        update_move_cache(self, board_move, true);
+    }
+
+    pub fn do_move_nonlazy(&mut self, board_move: u32) {
+        if board_move == NULL_MOVE {
+            self.null_move_counter += 1;
+            self.skip_turn();
+
+            update_move_cache_from_null_move(self);
+
+            return;
+        }
+
+        let unpacked = Move::unpack(board_move);
+        // update the accumulators
+        let move_tiles =
+            &ORIENTATION_DATA[unpacked.movetype as usize][unpacked.orientation as usize];
+
+        for tile in move_tiles {
+            let x = tile.x + unpacked.x;
+            let y = tile.y + unpacked.y;
+
+            let player_a_offset = (x + 14 * y) as usize;
+            let player_b_offset = ((13 - x) + 14 * (13 - y)) as usize;
+
+            let stm_offset = 0;
+            let ntm_offset = 196;
+
+            self.player_a_accumulator.add_feature(
+                if unpacked.player == 0 {
+                    stm_offset + player_a_offset
+                } else {
+                    ntm_offset + player_b_offset
+                },
+                &self.network,
+            );
+
+            self.player_b_accumulator.add_feature(
+                if unpacked.player == 1 {
+                    stm_offset + player_b_offset
+                } else {
+                    ntm_offset + player_a_offset
+                },
+                &self.network,
+            );
+        }
+
+        self.null_move_counter = 0;
+        // note: update move cache calls skip_turn
+        update_move_cache(self, board_move, false);
     }
 
     pub fn skip_turn(&mut self) {

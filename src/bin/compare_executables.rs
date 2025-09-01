@@ -7,9 +7,9 @@ use std::process::{Command, Stdio};
 
 /// Path to the two engine executables to compare.
 /// You may want to change these to the correct paths for your system.
-const ENGINE1_PATH: &str = "./executables/executable-new";
+const ENGINE1_PATH: &str = "./executables/executable-newer";
 const ENGINE2_PATH: &str = "./executables/executable-old";
-const NUM_GAME_PAIRS: usize = 50;
+const NUM_GAME_PAIRS: usize = 500;
 const OPENING_PLIES: usize = 6;
 
 fn generate_opening() -> Vec<u32> {

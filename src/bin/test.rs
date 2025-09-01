@@ -5,33 +5,18 @@ use blok_rs::nn::NNUE;
 
 fn main() {
     // Create a new board in the default start position
-    let board = BoardState::new(StartPosition::Corner, NNUE);
+    let mut board = BoardState::new(StartPosition::Corner, NNUE);
 
-    let moves = generate_moves(&board);
+    let moves = [
+        8195, 67156, 2452, 93531, 20530, 87118, 515, 80728, 4113, 85427, 41985, 107920, 14656,
+        70538, 10329, 88593, 13003, 78297, 19507, 82841, 23340, 73920, 40584, 103041, 27738,
+        100784, 31289, 99264, 36392, 72369, 7499, 94361, 30169, 63488, 63488,
+    ];
 
-    let mut moves_with_evals: Vec<(u32, i32)> = moves
-        .iter()
-        .map(|m| {
-            let mut new_board = board.clone();
-            new_board.do_move(*m);
-            let eval = if new_board.player == Player::White {
-                blok_rs::nn::NNUE.evaluate(
-                    &new_board.player_a_accumulator,
-                    &new_board.player_b_accumulator,
-                )
-            } else {
-                blok_rs::nn::NNUE.evaluate(
-                    &new_board.player_b_accumulator,
-                    &new_board.player_a_accumulator,
-                )
-            };
-            (*m, eval)
-        })
-        .collect();
-
-    moves_with_evals.sort_by_key(|(_, eval)| *eval);
-
-    for (m, eval) in moves_with_evals {
-        println!("Move: {}, Eval: {}", m, eval);
+    for m in moves {
+        board.do_move(m);
     }
+
+    println!("{:?}", board.score());
+    println!("{:?}", board.game_result());
 }

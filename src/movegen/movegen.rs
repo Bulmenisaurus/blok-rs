@@ -302,20 +302,21 @@ pub fn generate_moves(board: &BoardState) -> Vec<u32> {
         &board.player_b_corner_moves
     };
 
-    let mut unique_moves: Vec<u32> = my_corner_moves.values().flatten().cloned().collect();
-    unique_moves.sort_unstable();
-    unique_moves.dedup();
-
-    let filtered: Vec<u32> = unique_moves
-        .into_iter()
+    let mut unique_moves: Vec<u32> = my_corner_moves
+        .values()
+        .flatten()
+        .cloned()
         .filter(|m| is_move_legal(board, *m))
         .collect();
 
-    if filtered.is_empty() {
+    unique_moves.sort();
+    unique_moves.dedup();
+
+    if unique_moves.is_empty() {
         return vec![NULL_MOVE];
     }
 
-    filtered
+    unique_moves
 }
 
 // At this point our move generation is so lazy we just add all moves, then filter later
@@ -344,7 +345,7 @@ pub fn get_legal_moves_from(
     }
 }
 
-pub fn update_move_cache(board: &mut BoardState, last_move: u32) {
+pub fn update_move_cache(board: &mut BoardState, last_move: u32, lazy: bool) {
     let mov = Move::unpack(last_move);
 
     // remove this move from the pool
@@ -436,6 +437,36 @@ pub fn update_move_cache(board: &mut BoardState, last_move: u32) {
     }
 
     board.skip_turn();
+
+    if lazy {
+        return;
+    }
+
+    // filter opponent's moves (now the player to move)
+    let opponent_cached_moves: Vec<Coord> = if board.player == Player::White {
+        board.player_a_corner_moves.keys().cloned().collect()
+    } else {
+        board.player_b_corner_moves.keys().cloned().collect()
+    };
+
+    for coord in opponent_cached_moves {
+        let old_moves = if board.player == Player::White {
+            board.player_a_corner_moves.get_mut(&coord).unwrap().clone()
+        } else {
+            board.player_b_corner_moves.get_mut(&coord).unwrap().clone()
+        };
+
+        let new_moves: Vec<u32> = old_moves
+            .into_iter()
+            .filter(|m| is_move_legal(board, *m))
+            .collect();
+
+        if board.player == Player::White {
+            board.player_a_corner_moves.insert(coord, new_moves);
+        } else {
+            board.player_b_corner_moves.insert(coord, new_moves);
+        }
+    }
 }
 
 pub fn update_move_cache_from_null_move(board: &mut BoardState) {

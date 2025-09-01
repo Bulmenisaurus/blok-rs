@@ -33,7 +33,7 @@ impl MonteCarlo {
     pub fn run_search(&mut self, state: &BoardState, difficulty: &str) {
         self.make_root_node(state);
         let iterations = match difficulty {
-            "test" => 5_000,
+            "test" => 1_000,
             "eval" => 5_000,
             "easy" => 10_000,
             "medium" => 20_000,
@@ -73,6 +73,8 @@ impl MonteCarlo {
 
         let start_time = Instant::now();
 
+        let mut iterations = 0;
+
         while Instant::now() - start_time < Duration::from_millis(timeout as u64) {
             let tree_state: &mut BoardState = &mut state.clone();
 
@@ -97,7 +99,10 @@ impl MonteCarlo {
                 };
                 self.backpropagate(node_idx, effective_probability, tree_state.player);
             }
+            iterations += 1;
         }
+
+        eprintln!("Iterations nondedup: {}", iterations);
     }
 
     fn make_root_node(&mut self, state: &BoardState) {
