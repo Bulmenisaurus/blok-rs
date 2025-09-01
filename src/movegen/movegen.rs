@@ -427,7 +427,7 @@ pub fn update_move_cache(board: &mut BoardState, last_move: u32) {
             continue;
         }
 
-        let mut legal_moves: Vec<u32> = Vec::new();
+        let mut legal_moves: Vec<u32> = Vec::with_capacity(300);
 
         for unplaced_piece in 0..21u8 {
             if my_remaining_pieces & (1 << unplaced_piece) == 0 {
@@ -449,32 +449,6 @@ pub fn update_move_cache(board: &mut BoardState, last_move: u32) {
     }
 
     board.skip_turn();
-
-    // filter opponent's moves (now the player to move)
-    let opponent_cached_moves: Vec<Coord> = if board.player == Player::White {
-        board.player_a_corner_moves.keys().cloned().collect()
-    } else {
-        board.player_b_corner_moves.keys().cloned().collect()
-    };
-
-    for coord in opponent_cached_moves {
-        let old_moves = if board.player == Player::White {
-            board.player_a_corner_moves.get_mut(&coord).unwrap().clone()
-        } else {
-            board.player_b_corner_moves.get_mut(&coord).unwrap().clone()
-        };
-
-        let new_moves: Vec<u32> = old_moves
-            .into_iter()
-            .filter(|m| is_move_pseudolegal(board, *m))
-            .collect();
-
-        if board.player == Player::White {
-            board.player_a_corner_moves.insert(coord, new_moves);
-        } else {
-            board.player_b_corner_moves.insert(coord, new_moves);
-        }
-    }
 }
 
 pub fn update_move_cache_from_null_move(board: &mut BoardState) {
