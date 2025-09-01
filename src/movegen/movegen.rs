@@ -104,6 +104,37 @@ impl Move {
     }
 }
 
+// lazier version of is_move_legal
+// doesn't check for adjacency or halo
+pub fn is_move_pseudolegal(board: &BoardState, m: u32) -> bool {
+    if m == NULL_MOVE {
+        return true;
+    }
+    let player = Move::get_player(m);
+    let location = Move::get_location(m);
+    let movetype = Move::get_movetype(m);
+    let orientation = Move::get_orientation(m);
+
+    let my_remaining = if player == 0 {
+        board.player_a_remaining
+    } else {
+        board.player_b_remaining
+    };
+
+    // check if this move has already been placed
+    if my_remaining & (1u32 << movetype) == 0 {
+        return false;
+    }
+
+    // check if it is outside of the board
+    let (bx, by) = SHORT_BOUNDING_BOX_DATA[movetype as usize][orientation as usize];
+    if location.x + bx > 13 || location.y + by > 13 {
+        return false;
+    }
+
+    true
+}
+
 pub fn is_move_legal(board: &BoardState, m: u32) -> bool {
     if m == NULL_MOVE {
         return true;
@@ -280,14 +311,20 @@ pub fn generate_moves(board: &BoardState) -> Vec<u32> {
     };
 
     let mut unique_moves: Vec<u32> = my_corner_moves.values().flatten().cloned().collect();
+    println!("unique_moves: {}", unique_moves.len());
     unique_moves.sort_unstable();
     unique_moves.dedup();
 
-    if unique_moves.is_empty() {
+    let filtered: Vec<u32> = unique_moves
+        .into_iter()
+        .filter(|m| is_move_legal(board, *m))
+        .collect();
+
+    if filtered.is_empty() {
         return vec![NULL_MOVE];
     }
 
-    unique_moves
+    filtered
 }
 
 pub fn get_legal_moves_from(
@@ -322,7 +359,7 @@ pub fn get_legal_moves_from(
                 movetype,
             };
 
-            if is_move_legal(board, mov.pack()) {
+            if is_move_pseudolegal(board, mov.pack()) {
                 legal_moves.push(mov.pack());
             }
         }
@@ -438,7 +475,7 @@ pub fn update_move_cache(board: &mut BoardState, last_move: u32) {
 
         let new_moves: Vec<u32> = old_moves
             .into_iter()
-            .filter(|m| is_move_legal(board, *m))
+            .filter(|m| is_move_pseudolegal(board, *m))
             .collect();
 
         if board.player == Player::White {
@@ -462,7 +499,7 @@ pub fn update_move_cache_from_null_move(board: &mut BoardState) {
         .map(|(coord, moves)| {
             let legal_moves: Vec<u32> = moves
                 .into_iter()
-                .filter(|m| is_move_legal(board, *m))
+                .filter(|m| is_move_pseudolegal(board, *m))
                 .collect();
             (coord, legal_moves)
         })
