@@ -290,8 +290,12 @@ pub fn generate_moves(board: &BoardState) -> Vec<u32> {
     unique_moves
 }
 
-pub fn get_legal_moves_from(from: Coord, movetype: u8, board: &BoardState) -> Vec<u32> {
-    let mut legal_moves: Vec<u32> = Vec::new();
+pub fn get_legal_moves_from(
+    from: Coord,
+    movetype: u8,
+    board: &BoardState,
+    legal_moves: &mut Vec<u32>,
+) {
     let orientation_data = &ORIENTATION_DATA[movetype as usize];
 
     for i in 0..orientation_data.len() {
@@ -323,8 +327,6 @@ pub fn get_legal_moves_from(from: Coord, movetype: u8, board: &BoardState) -> Ve
             }
         }
     }
-
-    legal_moves
 }
 
 pub fn update_move_cache(board: &mut BoardState, last_move: u32) {
@@ -399,14 +401,12 @@ pub fn update_move_cache(board: &mut BoardState, last_move: u32) {
 
         let mut legal_moves: Vec<u32> = Vec::new();
 
-        for unplaced_piece in 0..21 {
+        for unplaced_piece in 0..21u8 {
             if my_remaining_pieces & (1 << unplaced_piece) == 0 {
                 continue;
             }
 
-            let movetype = unplaced_piece as u8;
-
-            legal_moves.extend(get_legal_moves_from(absolute_corner, movetype, board));
+            get_legal_moves_from(absolute_corner, unplaced_piece, board, &mut legal_moves);
         }
 
         if board.player == Player::White {
