@@ -67,6 +67,7 @@ impl MonteCarlo {
     pub fn run_search_timeout(&mut self, state: &BoardState, timeout: usize) {
         self.make_root_node(state);
         let start_time = Instant::now();
+        let mut iterations = 0;
 
         while Instant::now() - start_time < Duration::from_millis(timeout as u64) {
             let tree_state: &mut BoardState = &mut state.clone();
@@ -86,7 +87,11 @@ impl MonteCarlo {
             } else {
                 self.backpropagate(node_idx, winner, tree_state.player);
             }
+
+            iterations += 1;
         }
+
+        eprintln!("Iterations classic: {}", iterations);
     }
     fn make_root_node(&mut self, state: &BoardState) {
         let unexpanded_moves = generate_moves(state);
