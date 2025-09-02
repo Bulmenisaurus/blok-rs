@@ -59,12 +59,12 @@ async fn handle_websocket(ws_stream: WebSocketStream<TcpStream>) {
                             }
                             ServerMessage::FindMove { r#move } => {
                                 if let Some(last_move) = r#move {
-                                    board.do_move(last_move);
+                                    board.do_move_nonlazy(last_move);
                                 }
 
                                 eval.run_search(&board, &game_difficulty);
                                 let best_move = eval.best_play().unwrap();
-                                board.do_move(best_move);
+                                board.do_move_nonlazy(best_move);
                                 eval.clear();
 
                                 let response_json =
