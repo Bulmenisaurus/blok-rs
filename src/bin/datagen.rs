@@ -15,8 +15,8 @@ use std::{
     time::Instant,
 };
 
-const TOTAL_GAMES: usize = 100_000;
-const BATCH_SIZE: usize = 1000;
+const TOTAL_GAMES: usize = 10;
+const BATCH_SIZE: usize = 10;
 const START_POSITION: StartPosition = StartPosition::Corner;
 const OPENING_PLIES: usize = 6;
 
@@ -76,7 +76,7 @@ fn playout() -> Vec<[u32; 15]> {
     for _ in 0..OPENING_PLIES {
         let moves = generate_moves(&board);
         let random_move = moves.choose(&mut rng).unwrap();
-        board.do_move(*random_move);
+        board.do_move_nonlazy(*random_move);
     }
 
     while board.game_result() == GameResult::InProgress {
@@ -100,7 +100,7 @@ fn playout() -> Vec<[u32; 15]> {
             packed_positions.push(packed);
         }
 
-        board.do_move(chosen_move);
+        board.do_move_nonlazy(chosen_move);
     }
 
     let result = board.game_result();
