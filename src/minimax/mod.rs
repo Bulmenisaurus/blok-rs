@@ -14,7 +14,7 @@ pub fn search(state: &BoardState, timeout_ms: usize) -> u32 {
     let mut best_move = generate_moves(state)[0];
 
     loop {
-        println!("Searching at depth: {}", current_depth);
+        eprintln!("Searching at depth: {}", current_depth);
         let legal_moves = generate_moves(state);
 
         let mut current_depth_best_score = i32::MIN;

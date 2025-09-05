@@ -6,8 +6,8 @@ use std::process::{Command, Stdio};
 
 /// Path to the two engine executables to compare.
 /// You may want to change these to the correct paths for your system.
-const ENGINE1_PATH: &str = "./executables/hce-latest";
-const ENGINE2_PATH: &str = "./executables/nn-latest";
+const ENGINE1_PATH: &str = "./executables/mm-latest";
+const ENGINE2_PATH: &str = "./executables/mm-latest";
 const NUM_GAME_PAIRS: usize = 50;
 const OPENING_PLIES: usize = 6;
 
