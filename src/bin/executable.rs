@@ -2,6 +2,7 @@ use blok_rs::{
     board::{BoardState, StartPosition},
     mcts::MonteCarlo,
     movegen::generate_moves,
+    nn::NNUE,
 };
 use std::env;
 
@@ -16,7 +17,7 @@ fn main() {
     }
     let move_strs: Vec<&str> = args[1].split_whitespace().collect();
 
-    let mut board = BoardState::new(StartPosition::Corner);
+    let mut board = BoardState::new(StartPosition::Corner, NNUE);
 
     // Play the moves from the command line
     for mstr in move_strs {

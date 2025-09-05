@@ -1,9 +1,10 @@
 use blok_rs::board::BoardState;
 use blok_rs::board::StartPosition;
 use blok_rs::mcts::MonteCarlo;
+use blok_rs::nn::NNUE;
 
 pub fn main() {
-    let board = BoardState::new(StartPosition::Corner);
+    let board = BoardState::new(StartPosition::Corner, NNUE);
     let mut mcts = MonteCarlo::new();
 
     mcts.run_search(&board, "easy");

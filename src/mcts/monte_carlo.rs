@@ -6,23 +6,19 @@ use rand::rng;
 use crate::board::{BoardState, GameResult, Player};
 use crate::mcts::MonteCarloNode;
 use crate::movegen::generate_moves;
+use crate::nn::Network;
 
 pub struct MonteCarlo {
     ucb1_explore_param: f64,
+    puct_explore_param: f64,
     pub nodes: Vec<MonteCarloNode>,
-}
-
-impl Default for MonteCarlo {
-    fn default() -> Self {
-        Self::new()
-    }
 }
 
 impl MonteCarlo {
     pub fn new() -> Self {
         Self {
-            //TODO: what actually was it
-            ucb1_explore_param: 0.,
+            ucb1_explore_param: 0.0,
+            puct_explore_param: 1.0,
             nodes: Vec::new(),
         }
     }
@@ -130,15 +126,17 @@ impl MonteCarlo {
         while node.is_fully_expanded() && !node.is_leaf() {
             let plays = node.all_plays();
             let mut best_play: Option<u32> = None;
-            let mut best_ucb1 = f64::NEG_INFINITY;
+            let mut best_score = f64::NEG_INFINITY;
 
             for &play in &plays {
                 let child_node = &self.nodes[node.child_node(play)];
 
-                let child_ucb1 = child_node.get_ucb1(self.ucb1_explore_param, &self.nodes);
-                if child_ucb1 > best_ucb1 || best_play.is_none() {
+                // let child_ucb1 = child_node.get_ucb1(self.ucb1_explore_param, &self.nodes);
+
+                let child_puct = child_node.get_puct(state, node, self.puct_explore_param);
+                if child_puct > best_score || best_play.is_none() {
                     best_play = Some(play);
-                    best_ucb1 = child_ucb1;
+                    best_score = child_puct;
                 }
             }
 

@@ -1,6 +1,12 @@
 use std::collections::HashMap;
 
-use crate::movegen::{NULL_MOVE, PIECE_DATA, update_move_cache, update_move_cache_from_null_move};
+use crate::{
+    movegen::{
+        Move, NULL_MOVE, ORIENTATION_DATA, PIECE_DATA, update_move_cache,
+        update_move_cache_from_null_move,
+    },
+    nn::{Accumulator, Network},
+};
 
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -65,7 +71,7 @@ pub enum GameResult {
     Draw,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct BoardState {
     // Player to move
     pub player: Player,
@@ -86,10 +92,15 @@ pub struct BoardState {
     // Cached corner moves
     pub player_a_corner_moves: HashMap<Coord, Vec<u32>>,
     pub player_b_corner_moves: HashMap<Coord, Vec<u32>>,
+
+    pub player_a_accumulator: Accumulator,
+    pub player_b_accumulator: Accumulator,
+
+    network: Network,
 }
 
 impl BoardState {
-    pub fn new(start_position: StartPosition) -> Self {
+    pub fn new(start_position: StartPosition, network: Network) -> Self {
         Self {
             player: Player::White,
             player_a_remaining: 0x1fffff,
@@ -100,6 +111,9 @@ impl BoardState {
             start_position,
             player_a_corner_moves: HashMap::new(),
             player_b_corner_moves: HashMap::new(),
+            player_a_accumulator: Accumulator::new(&network),
+            player_b_accumulator: Accumulator::new(&network),
+            network,
         }
     }
 
@@ -154,6 +168,39 @@ impl BoardState {
             return;
         }
 
+        let unpacked = Move::unpack(board_move);
+        let move_tiles =
+            &ORIENTATION_DATA[unpacked.movetype as usize][unpacked.orientation as usize];
+
+        for tile in move_tiles {
+            let x = tile.x + unpacked.x;
+            let y = tile.y + unpacked.y;
+
+            let player_a_offset = (x + 14 * y) as usize;
+            let player_b_offset = ((13 - x) + 14 * (13 - y)) as usize;
+
+            let stm_offset = 0;
+            let ntm_offset = 196;
+
+            self.player_a_accumulator.add_feature(
+                if unpacked.player == 0 {
+                    stm_offset + player_a_offset
+                } else {
+                    ntm_offset + player_b_offset
+                },
+                &self.network,
+            );
+
+            self.player_b_accumulator.add_feature(
+                if unpacked.player == 1 {
+                    stm_offset + player_b_offset
+                } else {
+                    ntm_offset + player_a_offset
+                },
+                &self.network,
+            );
+        }
+
         self.null_move_counter = 0;
         // note: update move cache calls skip_turn
         update_move_cache(self, board_move);
@@ -161,5 +208,17 @@ impl BoardState {
 
     pub fn skip_turn(&mut self) {
         self.player = self.player.other();
+    }
+
+    pub fn sample_nn(&self) -> i32 {
+        let eval = -if self.player == Player::White {
+            self.network
+                .evaluate(&self.player_a_accumulator, &self.player_b_accumulator)
+        } else {
+            self.network
+                .evaluate(&self.player_b_accumulator, &self.player_a_accumulator)
+        };
+
+        eval
     }
 }

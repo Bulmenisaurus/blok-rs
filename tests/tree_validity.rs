@@ -1,10 +1,11 @@
 use blok_rs::board::{BoardState, StartPosition};
 use blok_rs::mcts::MonteCarloNode;
 use blok_rs::mcts::monte_carlo::MonteCarlo;
+use blok_rs::nn::NNUE;
 
 #[test]
 pub fn is_valid_tree() {
-    let game = BoardState::new(StartPosition::Corner);
+    let game = BoardState::new(StartPosition::Corner, NNUE);
     let mut mcts = MonteCarlo::new();
     mcts.run_search(&game, "test");
 

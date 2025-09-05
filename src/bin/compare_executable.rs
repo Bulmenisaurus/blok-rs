@@ -1,5 +1,6 @@
 use blok_rs::board::{BoardState, GameResult, StartPosition};
 use blok_rs::movegen::generate_moves;
+use blok_rs::nn::NNUE;
 use rand::rng;
 use rand::seq::IndexedRandom;
 use std::process::{Command, Stdio};
@@ -12,7 +13,7 @@ const NUM_GAME_PAIRS: usize = 50;
 const OPENING_PLIES: usize = 6;
 
 fn generate_opening() -> Vec<u32> {
-    let mut board = BoardState::new(StartPosition::Corner);
+    let mut board = BoardState::new(StartPosition::Corner, NNUE);
     let mut moves: Vec<u32> = Vec::new();
     let mut rng = rng();
 
@@ -84,7 +85,7 @@ fn main() {
 /// Plays a single game between two engines, returning the result from the perspective of the first engine (as White).
 /// The game starts from the given opening moves.
 fn play_game(engine_white: &str, engine_black: &str, opening_moves: &[u32]) -> GameResult {
-    let mut board = BoardState::new(StartPosition::Corner);
+    let mut board = BoardState::new(StartPosition::Corner, NNUE);
     let mut moves: Vec<u32> = Vec::new();
     let mut move_strings: Vec<String> = Vec::new();
 

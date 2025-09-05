@@ -1,6 +1,7 @@
 mod board;
 mod mcts;
 mod movegen;
+mod nn;
 
 use futures_util::{SinkExt, StreamExt};
 use mcts::MonteCarlo;
@@ -8,6 +9,8 @@ use serde::{Deserialize, Serialize};
 use tokio::net::{TcpListener, TcpStream};
 use tokio_tungstenite::tungstenite::Message;
 use tokio_tungstenite::{WebSocketStream, accept_async};
+
+use crate::nn::NNUE;
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(tag = "type")]
@@ -26,7 +29,7 @@ async fn handle_websocket(ws_stream: WebSocketStream<TcpStream>) {
     let (mut ws_sender, mut ws_receiver) = ws_stream.split();
 
     // Run a quick MCTS test first
-    let mut board = board::BoardState::new(board::StartPosition::Corner);
+    let mut board = board::BoardState::new(board::StartPosition::Corner, NNUE);
     let mut eval: MonteCarlo = MonteCarlo::new();
     let mut game_difficulty: String = "hard".to_string();
 

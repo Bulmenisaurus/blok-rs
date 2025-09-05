@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+use crate::board::BoardState;
+
 #[derive(Clone, Debug)]
 pub struct MonteCarloNode {
     pub parent_idx: Option<usize>,
@@ -79,5 +81,27 @@ impl MonteCarloNode {
 
         self.n_wins as f64 / self.n_plays as f64
             + f64::sqrt(bias_param * f64::ln(parent.n_plays as f64) / self.n_plays as f64)
+    }
+
+    //TODO: could we just keep track of parent_n_plays?
+    pub fn get_puct(
+        &self,
+        board: &BoardState,
+        parent_node: &MonteCarloNode,
+        bias_param: f64,
+    ) -> f64 {
+        let score = self.n_wins as f64 / self.n_plays as f64;
+
+        let nn_scale = 1500.;
+        let nn_probability = f64::tanh(board.sample_nn() as f64 / nn_scale);
+
+        let parent_node = &parent_node;
+
+        let parent_n_plays = parent_node.n_plays;
+        let self_n_plays = self.n_plays;
+
+        score
+            + bias_param * nn_probability * f64::sqrt(parent_n_plays as f64)
+                / (1. + self_n_plays as f64)
     }
 }

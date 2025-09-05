@@ -2,6 +2,7 @@ use blok_rs::{
     board::{BoardState, GameResult, Player, StartPosition},
     mcts::MonteCarlo,
     movegen::{NULL_MOVE, generate_moves},
+    nn::NNUE,
 };
 
 use rand::seq::IndexedRandom;
@@ -60,7 +61,7 @@ fn main() {
 }
 
 fn playout() -> Vec<[u32; 15]> {
-    let mut board = BoardState::new(StartPosition::Corner);
+    let mut board = BoardState::new(StartPosition::Corner, NNUE);
     let mut mcts = MonteCarlo::new();
     let mut rng = rand::rng();
 
