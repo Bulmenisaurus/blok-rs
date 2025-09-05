@@ -2,7 +2,7 @@ use std::time::{Duration, Instant};
 
 use crate::{
     board::{BoardState, Player},
-    movegen::generate_moves,
+    movegen::{Move, NULL_MOVE, PIECE_DATA, generate_moves},
 };
 
 pub fn search(state: &BoardState, timeout_ms: usize) -> u32 {
@@ -42,6 +42,16 @@ pub fn search(state: &BoardState, timeout_ms: usize) -> u32 {
     }
 }
 
+fn order_moves(moves: &mut Vec<u32>) {
+    moves.sort_by_key(|m| {
+        if *m == NULL_MOVE {
+            return 0;
+        }
+        PIECE_DATA[Move::get_movetype(*m) as usize].len() as i32
+    });
+    moves.reverse();
+}
+
 fn alpha_beta(
     state: &BoardState,
     alpha: i32,
@@ -60,7 +70,8 @@ fn alpha_beta(
     let mut alpha = alpha;
     let mut beta = beta;
 
-    let legal_moves = generate_moves(state);
+    let mut legal_moves = generate_moves(state);
+    order_moves(&mut legal_moves);
 
     let mut best_score = i32::MIN;
 
