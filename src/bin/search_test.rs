@@ -1,16 +1,11 @@
 use blok_rs::board::BoardState;
 use blok_rs::board::StartPosition;
-use blok_rs::mcts::MonteCarlo;
+use blok_rs::minimax::search;
 
 pub fn main() {
     let board = BoardState::new(StartPosition::Corner);
-    let mut mcts = MonteCarlo::new();
 
-    mcts.run_search(&board, "easy");
-    let best_move = mcts.best_play().unwrap();
-    let stats = mcts.get_stats();
-    println!(
-        "Result of search: {} (eval ~ {}/{})",
-        best_move, stats.0, stats.1
-    );
+    let best_move = search(&board, 1_000);
+
+    println!("Best move: {}", best_move);
 }

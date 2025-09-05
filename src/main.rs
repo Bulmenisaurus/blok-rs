@@ -1,9 +1,8 @@
 mod board;
-mod mcts;
+mod minimax;
 mod movegen;
 
 use futures_util::{SinkExt, StreamExt};
-use mcts::MonteCarlo;
 use serde::{Deserialize, Serialize};
 use tokio::net::{TcpListener, TcpStream};
 use tokio_tungstenite::tungstenite::Message;
@@ -27,7 +26,6 @@ async fn handle_websocket(ws_stream: WebSocketStream<TcpStream>) {
 
     // Run a quick MCTS test first
     let mut board = board::BoardState::new(board::StartPosition::Corner);
-    let mut eval: MonteCarlo = MonteCarlo::new();
     let mut game_difficulty: String = "hard".to_string();
 
     // Handle incoming messages
@@ -60,10 +58,8 @@ async fn handle_websocket(ws_stream: WebSocketStream<TcpStream>) {
                                     board.do_move(last_move);
                                 }
 
-                                eval.run_search(&board, &game_difficulty);
-                                let best_move = eval.best_play().unwrap();
+                                let best_move = minimax::search(&board, 1_000);
                                 board.do_move(best_move);
-                                eval.clear();
 
                                 let response_json =
                                     format!("{{\"type\": \"move\", \"move\": {}}}", best_move);
