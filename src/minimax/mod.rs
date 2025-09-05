@@ -23,7 +23,7 @@ pub fn search(state: &BoardState, timeout_ms: usize) -> u32 {
         for m in legal_moves {
             let mut new_state = state.clone();
             new_state.do_move(m);
-            let score = match negamax(&new_state, current_depth, end_time) {
+            let score = match alpha_beta(&new_state, i32::MIN, i32::MAX, current_depth, end_time) {
                 Some(x) => -x,
                 None => return best_move,
             };
@@ -42,7 +42,13 @@ pub fn search(state: &BoardState, timeout_ms: usize) -> u32 {
     }
 }
 
-fn negamax(state: &BoardState, depth: usize, deadline: Instant) -> Option<i32> {
+fn alpha_beta(
+    state: &BoardState,
+    alpha: i32,
+    beta: i32,
+    depth: usize,
+    deadline: Instant,
+) -> Option<i32> {
     if Instant::now() > deadline {
         return None;
     }
@@ -51,6 +57,9 @@ fn negamax(state: &BoardState, depth: usize, deadline: Instant) -> Option<i32> {
         return Some(static_eval(state));
     }
 
+    let mut alpha = alpha;
+    let mut beta = beta;
+
     let legal_moves = generate_moves(state);
 
     let mut best_score = i32::MIN;
@@ -58,7 +67,7 @@ fn negamax(state: &BoardState, depth: usize, deadline: Instant) -> Option<i32> {
     for m in legal_moves {
         let mut new_state = state.clone();
         new_state.do_move(m);
-        let score = match negamax(&new_state, depth - 1, deadline) {
+        let score = match alpha_beta(&new_state, -beta, -alpha, depth - 1, deadline) {
             Some(x) => -x,
             None => return None,
         };
@@ -66,12 +75,19 @@ fn negamax(state: &BoardState, depth: usize, deadline: Instant) -> Option<i32> {
         if score > best_score {
             best_score = score;
         }
+        if score > alpha {
+            alpha = score;
+        }
+
+        if score >= beta {
+            return Some(score);
+        }
     }
 
     Some(best_score)
 }
 
-// from the persepective of player a
+// from the persepective of the player to move
 fn static_eval(state: &BoardState) -> i32 {
     let score = state.score();
 
