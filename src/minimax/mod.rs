@@ -24,8 +24,8 @@ pub fn search(state: &BoardState, timeout_ms: usize) -> u32 {
             let mut new_state = state.clone();
             new_state.do_move(m);
             let score = match alpha_beta(&new_state, i32::MIN, i32::MAX, current_depth, end_time) {
-                Some(x) => -x,
-                None => return best_move,
+                Ok(x) => -x,
+                Err(()) => return best_move,
             };
 
             if score > current_depth_best_score {
@@ -58,17 +58,16 @@ fn alpha_beta(
     beta: i32,
     depth: usize,
     deadline: Instant,
-) -> Option<i32> {
+) -> Result<i32, ()> {
     if Instant::now() > deadline {
-        return None;
+        return Err(());
     }
 
     if depth == 0 {
-        return Some(static_eval(state));
+        return Ok(static_eval(state));
     }
 
     let mut alpha = alpha;
-    let mut beta = beta;
 
     let mut legal_moves = generate_moves(state);
     order_moves(&mut legal_moves);
@@ -78,10 +77,7 @@ fn alpha_beta(
     for m in legal_moves {
         let mut new_state = state.clone();
         new_state.do_move(m);
-        let score = match alpha_beta(&new_state, -beta, -alpha, depth - 1, deadline) {
-            Some(x) => -x,
-            None => return None,
-        };
+        let score = -alpha_beta(&new_state, -beta, -alpha, depth - 1, deadline)?;
 
         if score > best_score {
             best_score = score;
@@ -91,11 +87,11 @@ fn alpha_beta(
         }
 
         if score >= beta {
-            return Some(score);
+            return Ok(score);
         }
     }
 
-    Some(best_score)
+    Ok(best_score)
 }
 
 // from the persepective of the player to move
