@@ -1,39 +1,12 @@
-use std::{
-    collections::HashMap,
-    time::{Duration, Instant},
-};
+use std::time::{Duration, Instant};
 
 use crate::{
     board::{BoardState, GameResult, Player},
+    minimax::transposition_table::{TranspositionTable, TranspositionTableEntry},
     movegen::{INVALID_MOVE, Move, NULL_MOVE, PIECE_DATA, generate_moves},
 };
 
-#[derive(Clone)]
-pub struct TranspositionTableEntry {
-    pub score: i32,
-    pub depth: usize,
-}
-
-#[derive(Clone)]
-pub struct TranspositionTable {
-    entries: HashMap<u64, TranspositionTableEntry>,
-}
-
-impl TranspositionTable {
-    pub fn new() -> Self {
-        Self {
-            entries: HashMap::new(),
-        }
-    }
-
-    pub fn insert(&mut self, hash: u64, entry: TranspositionTableEntry) {
-        self.entries.insert(hash, entry);
-    }
-
-    pub fn get(&self, hash: u64) -> Option<&TranspositionTableEntry> {
-        self.entries.get(&hash)
-    }
-}
+mod transposition_table;
 
 const SCORE_MIN: i32 = -1_000_000;
 const SCORE_MAX: i32 = 1_000_000;
@@ -41,16 +14,16 @@ const SCORE_MAX: i32 = 1_000_000;
 pub fn search(state: &BoardState, timeout_ms: usize) -> u32 {
     let start_time = Instant::now();
     let end_time = start_time + Duration::from_millis(timeout_ms as u64);
-    let mut current_depth = 1;
 
     let mut transposition_table = TranspositionTable::new();
 
     // the current best move, as found by the last full search
     let mut best_move = generate_moves(state)[0];
+    let mut current_depth = 1;
 
     loop {
         eprintln!("Searching at depth: {}", current_depth);
-        let current_depth_best_move: u32;
+
         let search = alpha_beta(
             state,
             SCORE_MIN,
@@ -59,19 +32,19 @@ pub fn search(state: &BoardState, timeout_ms: usize) -> u32 {
             &mut transposition_table,
             end_time,
         );
-        match search {
-            Ok((_, m)) => {
-                current_depth_best_move = m;
-            }
-            Err(()) => return best_move,
-        }
 
-        best_move = current_depth_best_move;
+        best_move = match search {
+            Ok((_, m)) => m,
+            Err(()) => return best_move,
+        };
+
+        assert_ne!(best_move, INVALID_MOVE, "Best move is invalid");
+
         current_depth += 1;
     }
 }
 
-fn order_moves(moves: &mut Vec<u32>) {
+fn order_moves(moves: &mut [u32]) {
     moves.sort_by_key(|m| {
         if *m == NULL_MOVE {
             return 0;
@@ -125,12 +98,9 @@ fn alpha_beta(
         // Only use the TT if it's at least as deep as the current depth
         let tt_entry = tt.get(new_state.hash).and_then(|entry| {
             if entry.depth >= depth {
-                // if depth > 2 {
-                //     eprintln!("TT hit at depth: {}", entry.depth);
-                // }
-                return Some(entry.score);
+                Some(entry.score)
             } else {
-                return None;
+                None
             }
         });
 
@@ -142,13 +112,7 @@ fn alpha_beta(
             // otherwise, do a full search and store the result in the TT
             score = -alpha_beta(&new_state, -beta, -alpha, depth - 1, tt, deadline)?.0;
 
-            tt.insert(
-                new_state.hash,
-                TranspositionTableEntry {
-                    score,
-                    depth: depth,
-                },
-            );
+            tt.insert(new_state.hash, TranspositionTableEntry { score, depth });
         }
 
         if score > best_score {
@@ -177,5 +141,5 @@ fn static_eval(state: &BoardState) -> i32 {
         Player::Black => -1,
     };
 
-    return person_to_move * (score.player_a as i32 - score.player_b as i32);
+    person_to_move * (score.player_a as i32 - score.player_b as i32)
 }

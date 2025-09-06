@@ -58,7 +58,15 @@ async fn handle_websocket(ws_stream: WebSocketStream<TcpStream>) {
                                     board.do_move(last_move);
                                 }
 
-                                let best_move = minimax::search(&board, 1_000);
+                                let best_move = minimax::search(
+                                    &board,
+                                    match game_difficulty.as_str() {
+                                        "easy" => 1_000,
+                                        "medium" => 5_000,
+                                        "hard" => 10_000,
+                                        _ => 1_000,
+                                    },
+                                );
                                 board.do_move(best_move);
 
                                 let response_json =

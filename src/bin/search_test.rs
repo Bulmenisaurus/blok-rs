@@ -5,7 +5,7 @@ use blok_rs::minimax::search;
 pub fn main() {
     let mut board = BoardState::new(StartPosition::Corner);
 
-    for i in 0..10 {
+    for _ in 0..10 {
         board.do_move(search(&board, 100));
     }
 
