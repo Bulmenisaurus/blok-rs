@@ -1,5 +1,3 @@
-use rand;
-
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
 
