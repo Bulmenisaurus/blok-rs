@@ -3,9 +3,13 @@ use blok_rs::board::StartPosition;
 use blok_rs::minimax::search;
 
 pub fn main() {
-    let board = BoardState::new(StartPosition::Corner);
+    let mut board = BoardState::new(StartPosition::Corner);
 
-    let best_move = search(&board, 1_000);
+    for i in 0..10 {
+        board.do_move(search(&board, 100));
+    }
+
+    let best_move = search(&board, 1_000_000);
 
     println!("Best move: {}", best_move);
 }
