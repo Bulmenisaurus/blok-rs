@@ -86,6 +86,8 @@ pub struct BoardState {
     // Cached corner moves
     pub player_a_corner_moves: HashMap<Coord, Vec<u32>>,
     pub player_b_corner_moves: HashMap<Coord, Vec<u32>>,
+
+    pub hash: u64,
 }
 
 impl BoardState {
@@ -100,6 +102,7 @@ impl BoardState {
             start_position,
             player_a_corner_moves: HashMap::new(),
             player_b_corner_moves: HashMap::new(),
+            hash: 0,
         }
     }
 

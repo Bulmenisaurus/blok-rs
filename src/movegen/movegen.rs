@@ -4,6 +4,7 @@ use crate::board::{
     BoardState, Coord, CoordOffset, Player, StartPosition, get_start_position_coord,
 };
 
+use crate::movegen::zobrist::{null_move_count_zobrist, player_a_zobrist, player_b_zobrist};
 use once_cell::sync::Lazy;
 
 pub static PIECE_DATA: Lazy<Vec<Vec<Coord>>> = Lazy::new(|| {
@@ -327,8 +328,33 @@ pub fn get_legal_moves_from(from: Coord, movetype: u8, board: &BoardState) -> Ve
     legal_moves
 }
 
+fn update_hash(board: &mut BoardState, mov: &Move) {
+    let my_zobrist = if mov.player == 0 {
+        player_a_zobrist()
+    } else {
+        player_b_zobrist()
+    };
+
+    let tiles = &ORIENTATION_DATA[mov.movetype as usize][mov.orientation as usize];
+    for tile in tiles {
+        let absolute_tile = Coord {
+            x: tile.x + mov.x,
+            y: tile.y + mov.y,
+        };
+        board.hash ^= my_zobrist[absolute_tile.y as usize * 14 + absolute_tile.x as usize];
+    }
+
+    board.hash ^= null_move_count_zobrist()[board.null_move_counter as usize];
+}
+
+fn update_null_hash(board: &mut BoardState) {
+    board.hash ^= null_move_count_zobrist()[board.null_move_counter as usize];
+}
+
 pub fn update_move_cache(board: &mut BoardState, last_move: u32) {
     let mov = Move::unpack(last_move);
+
+    update_hash(board, &mov);
 
     // remove this move from the pool
     if mov.player == (Player::White as u8) {
@@ -450,6 +476,8 @@ pub fn update_move_cache(board: &mut BoardState, last_move: u32) {
 }
 
 pub fn update_move_cache_from_null_move(board: &mut BoardState) {
+    update_null_hash(board);
+
     // Take ownership of the cached moves, filter them, then reassign
     let cached_moves = if board.player == Player::White {
         std::mem::take(&mut board.player_a_corner_moves)

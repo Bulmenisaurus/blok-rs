@@ -1,5 +1,6 @@
 #![allow(clippy::module_inception)]
 mod movegen;
+mod zobrist;
 
 pub use movegen::{
     Move, NULL_MOVE, PIECE_DATA, generate_moves, update_move_cache,

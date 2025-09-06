@@ -182,3 +182,27 @@ fn playout_min(start_pos: StartPosition) -> Score {
 
     game.score()
 }
+
+#[test]
+pub fn test_hash_transposition() {
+    let moves1 = vec![6144, 67152, 41225, 69168, 39056];
+    let moves2 = vec![6144, 67152, 39056, 69168, 41225];
+
+    let moves_1_hash = {
+        let mut board = BoardState::new(StartPosition::Corner);
+        for m in moves1 {
+            board.do_move(m);
+        }
+        board.hash
+    };
+    let moves_2_hash = {
+        let mut board = BoardState::new(StartPosition::Corner);
+        for m in moves2 {
+            board.do_move(m);
+        }
+        board.hash
+    };
+    println!("Moves 1 hash: {}", moves_1_hash);
+    println!("Moves 2 hash: {}", moves_2_hash);
+    assert_eq!(moves_1_hash, moves_2_hash);
+}

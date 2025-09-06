@@ -5,6 +5,9 @@ use crate::{
     movegen::{Move, NULL_MOVE, PIECE_DATA, generate_moves},
 };
 
+const SCORE_MIN: i32 = -1_000_000;
+const SCORE_MAX: i32 = 1_000_000;
+
 pub fn search(state: &BoardState, timeout_ms: usize) -> u32 {
     let start_time = Instant::now();
     let end_time = start_time + Duration::from_millis(timeout_ms as u64);
@@ -17,13 +20,14 @@ pub fn search(state: &BoardState, timeout_ms: usize) -> u32 {
         eprintln!("Searching at depth: {}", current_depth);
         let legal_moves = generate_moves(state);
 
-        let mut current_depth_best_score = i32::MIN;
+        let mut current_depth_best_score = SCORE_MIN;
         let mut current_depth_best_move = legal_moves[0];
 
         for m in legal_moves {
             let mut new_state = state.clone();
             new_state.do_move(m);
-            let score = match alpha_beta(&new_state, i32::MIN, i32::MAX, current_depth, end_time) {
+            let score = match alpha_beta(&new_state, SCORE_MIN, SCORE_MAX, current_depth, end_time)
+            {
                 Ok(x) => -x,
                 Err(()) => return best_move,
             };
@@ -72,7 +76,7 @@ fn alpha_beta(
     let mut legal_moves = generate_moves(state);
     order_moves(&mut legal_moves);
 
-    let mut best_score = i32::MIN;
+    let mut best_score = SCORE_MIN;
 
     for m in legal_moves {
         let mut new_state = state.clone();
