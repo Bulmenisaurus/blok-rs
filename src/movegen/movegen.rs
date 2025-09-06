@@ -48,6 +48,7 @@ pub static SHORT_BOUNDING_BOX_DATA: Lazy<Vec<Vec<(u8, u8)>>> = Lazy::new(|| {
 });
 
 pub const NULL_MOVE: u32 = 0xf800;
+pub const INVALID_MOVE: u32 = 0xf801;
 
 // An unpacked move, with all the information
 #[derive(Clone, Copy, Debug)]

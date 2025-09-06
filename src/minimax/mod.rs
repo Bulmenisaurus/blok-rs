@@ -4,15 +4,14 @@ use std::{
 };
 
 use crate::{
-    board::{BoardState, Player},
-    movegen::{Move, NULL_MOVE, PIECE_DATA, generate_moves},
+    board::{BoardState, GameResult, Player},
+    movegen::{INVALID_MOVE, Move, NULL_MOVE, PIECE_DATA, generate_moves},
 };
 
 #[derive(Clone)]
 pub struct TranspositionTableEntry {
     pub score: i32,
     pub depth: usize,
-    pub best_move: u32,
 }
 
 #[derive(Clone)]
@@ -51,36 +50,23 @@ pub fn search(state: &BoardState, timeout_ms: usize) -> u32 {
 
     loop {
         eprintln!("Searching at depth: {}", current_depth);
-        let legal_moves = generate_moves(state);
-
-        let mut current_depth_best_score = SCORE_MIN;
-        let mut current_depth_best_move = legal_moves[0];
-
-        for m in legal_moves {
-            let mut new_state = state.clone();
-            new_state.do_move(m);
-            let score = match alpha_beta(
-                &new_state,
-                SCORE_MIN,
-                SCORE_MAX,
-                current_depth,
-                &mut transposition_table,
-                end_time,
-            ) {
-                Ok(x) => -x,
-                Err(()) => return best_move,
-            };
-
-            if score > current_depth_best_score {
-                current_depth_best_score = score;
+        let current_depth_best_move: u32;
+        let search = alpha_beta(
+            state,
+            SCORE_MIN,
+            SCORE_MAX,
+            current_depth,
+            &mut transposition_table,
+            end_time,
+        );
+        match search {
+            Ok((_, m)) => {
                 current_depth_best_move = m;
             }
+            Err(()) => return best_move,
         }
 
-        // only update the outer best score and depth move now, to make sure if the search is interrupted, we return the best move found at the last full depth searched
-
         best_move = current_depth_best_move;
-
         current_depth += 1;
     }
 }
@@ -102,13 +88,26 @@ fn alpha_beta(
     depth: usize,
     tt: &mut TranspositionTable,
     deadline: Instant,
-) -> Result<i32, ()> {
+) -> Result<(i32, u32), ()> {
     if Instant::now() > deadline {
         return Err(());
     }
 
+    if state.is_game_over() {
+        let score =
+            match (state.game_result(), state.player) {
+                (GameResult::PlayerAWon, Player::White)
+                | (GameResult::PlayerBWon, Player::Black) => 999_999,
+                (GameResult::PlayerBWon, Player::White)
+                | (GameResult::PlayerAWon, Player::Black) => -999_999,
+                (GameResult::Draw, _) => 0,
+                (GameResult::InProgress, _) => unreachable!(),
+            };
+        return Ok((score, INVALID_MOVE));
+    }
+
     if depth == 0 {
-        return Ok(static_eval(state));
+        return Ok((static_eval(state), INVALID_MOVE));
     }
 
     let mut alpha = alpha;
@@ -117,6 +116,7 @@ fn alpha_beta(
     order_moves(&mut legal_moves);
 
     let mut best_score = SCORE_MIN;
+    let mut best_move = legal_moves[0];
 
     for m in legal_moves {
         let mut new_state = state.clone();
@@ -140,31 +140,32 @@ fn alpha_beta(
             score = tt_score;
         } else {
             // otherwise, do a full search and store the result in the TT
-            score = -alpha_beta(&new_state, -beta, -alpha, depth - 1, tt, deadline)?;
+            score = -alpha_beta(&new_state, -beta, -alpha, depth - 1, tt, deadline)?.0;
 
             tt.insert(
                 new_state.hash,
                 TranspositionTableEntry {
                     score,
                     depth: depth,
-                    best_move: m,
                 },
             );
         }
 
         if score > best_score {
             best_score = score;
+            best_move = m;
         }
         if score > alpha {
             alpha = score;
         }
 
+        // beta cutoff shouldn't ever be used?
         if score >= beta {
-            return Ok(score);
+            return Ok((score, best_move));
         }
     }
 
-    Ok(best_score)
+    Ok((best_score, best_move))
 }
 
 // from the persepective of the player to move
