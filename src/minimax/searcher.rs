@@ -139,13 +139,27 @@ impl Searcher {
 
     // from the persepective of the player to move
     fn static_eval(&self, state: &BoardState) -> i32 {
-        let score = state.score();
-
         let person_to_move = match state.player {
             Player::White => 1,
             Player::Black => -1,
         };
 
-        person_to_move * (score.player_a as i32 - score.player_b as i32)
+        person_to_move * (self.white_eval(state) - self.black_eval(state))
+    }
+
+    fn white_eval(&self, state: &BoardState) -> i32 {
+        let score = state.score().player_a as i32;
+        let corner_bonus = state.player_a_corner_moves.values().flatten().count() as i32;
+        score * 100 + corner_bonus
+
+        // return score;
+    }
+
+    fn black_eval(&self, state: &BoardState) -> i32 {
+        let score = state.score().player_b as i32;
+        let corner_bonus = state.player_b_corner_moves.values().flatten().count() as i32;
+        score * 100 + corner_bonus
+
+        // return score;
     }
 }
