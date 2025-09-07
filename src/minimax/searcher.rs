@@ -11,12 +11,14 @@ const SCORE_MAX: i32 = 1_000_000;
 
 pub struct Searcher {
     transposition_table: TranspositionTable,
+    history: [u32; 14 * 14 * 21],
 }
 
 impl Searcher {
     pub fn new() -> Self {
         Self {
             transposition_table: TranspositionTable::new(),
+            history: [0; 14 * 14 * 21],
         }
     }
 
@@ -31,7 +33,14 @@ impl Searcher {
         loop {
             eprintln!("Searching at depth: {}", current_depth);
 
-            let search = self.alpha_beta(state, SCORE_MIN, SCORE_MAX, current_depth, end_time);
+            let search = self.alpha_beta(
+                state,
+                SCORE_MIN,
+                SCORE_MAX,
+                current_depth,
+                current_depth,
+                end_time,
+            );
 
             best_move = match search {
                 Ok((_, m)) => m,
@@ -50,6 +59,7 @@ impl Searcher {
         alpha: i32,
         beta: i32,
         depth: usize,
+        max_depth: usize,
         deadline: Instant,
     ) -> Result<(i32, u32), ()> {
         if Instant::now() > deadline {
@@ -103,7 +113,7 @@ impl Searcher {
             } else {
                 // otherwise, do a full search and store the result in the TT
                 score = -self
-                    .alpha_beta(&new_state, -beta, -alpha, depth - 1, deadline)?
+                    .alpha_beta(&new_state, -beta, -alpha, depth - 1, max_depth, deadline)?
                     .0;
 
                 self.transposition_table
@@ -120,6 +130,14 @@ impl Searcher {
 
             // beta cutoff shouldn't ever be used?
             if score >= beta {
+                if m != NULL_MOVE {
+                    let mov = Move::unpack(m);
+                    // the deeper we go, the more we increase the history
+                    let increasing_depth = max_depth - depth;
+                    self.history
+                        [mov.y as usize * 14 + mov.x as usize + mov.movetype as usize * 14 * 14] +=
+                        increasing_depth as u32;
+                }
                 return Ok((score, best_move));
             }
         }
@@ -132,7 +150,14 @@ impl Searcher {
             if *m == NULL_MOVE {
                 return 0;
             }
-            PIECE_DATA[Move::get_movetype(*m) as usize].len() as i32
+            // order by history first, then by move type
+            let history_score = self.history[Move::get_movetype(*m) as usize * 14 * 14
+                + Move::get_location(*m).y as usize * 14
+                + Move::get_location(*m).x as usize];
+
+            let move_type_score = PIECE_DATA[Move::get_movetype(*m) as usize].len() as u32;
+
+            history_score * 5 + move_type_score
         });
         moves.reverse();
     }
