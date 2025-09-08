@@ -1,4 +1,4 @@
-use blok_rs::board::{BoardState, GameResult, StartPosition};
+use blok_rs::board::{BoardState, GameResult, Player, StartPosition};
 use blok_rs::movegen::generate_moves;
 use rand::rng;
 use rand::seq::IndexedRandom;
@@ -40,8 +40,8 @@ fn main() {
         // Game 1: Engine1 as White, Engine2 as Black
         let result1 = play_game(ENGINE1_PATH, ENGINE2_PATH, &opening);
         match result1 {
-            GameResult::PlayerAWon => total_engine1 += 1,
-            GameResult::PlayerBWon => total_engine2 += 1,
+            GameResult::Win(Player::White) => total_engine1 += 1,
+            GameResult::Win(Player::Black) => total_engine2 += 1,
             GameResult::Draw => total_draws += 1,
             GameResult::InProgress => unreachable!(),
         }
@@ -54,8 +54,8 @@ fn main() {
         // Game 2: Engine2 as White, Engine1 as Black
         let result2 = play_game(ENGINE2_PATH, ENGINE1_PATH, &opening);
         match result2 {
-            GameResult::PlayerAWon => total_engine2 += 1,
-            GameResult::PlayerBWon => total_engine1 += 1,
+            GameResult::Win(Player::White) => total_engine2 += 1,
+            GameResult::Win(Player::Black) => total_engine1 += 1,
             GameResult::Draw => total_draws += 1,
             GameResult::InProgress => unreachable!(),
         }

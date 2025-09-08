@@ -60,8 +60,7 @@ pub struct Score {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum GameResult {
     InProgress,
-    PlayerAWon,
-    PlayerBWon,
+    Win(Player),
     Draw,
 }
 
@@ -140,8 +139,8 @@ impl BoardState {
 
         let score = self.score();
         match score.player_a.cmp(&score.player_b) {
-            std::cmp::Ordering::Greater => GameResult::PlayerAWon,
-            std::cmp::Ordering::Less => GameResult::PlayerBWon,
+            std::cmp::Ordering::Greater => GameResult::Win(Player::White),
+            std::cmp::Ordering::Less => GameResult::Win(Player::Black),
             std::cmp::Ordering::Equal => GameResult::Draw,
         }
     }

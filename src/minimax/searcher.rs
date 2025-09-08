@@ -6,8 +6,11 @@ use crate::{
     movegen::{INVALID_MOVE, Move, NULL_MOVE, PIECE_DATA, generate_moves},
 };
 
-const SCORE_MIN: i32 = -1_000_000;
-const SCORE_MAX: i32 = 1_000_000;
+/// Used for the bounds of alpha-beta pruning
+const SCORE_INFINITY: i32 = 1_000_000;
+
+/// End of game score, if winning +max, if losing -max
+const SCORE_MAX: i32 = 999_999;
 
 pub struct Searcher {
     transposition_table: TranspositionTable,
@@ -31,26 +34,29 @@ impl Searcher {
         let mut current_depth = 1;
 
         loop {
-            eprintln!("Searching at depth: {}", current_depth);
-
             let search = self.alpha_beta(
                 state,
-                SCORE_MIN,
-                SCORE_MAX,
+                -SCORE_INFINITY,
+                SCORE_INFINITY,
                 current_depth,
                 current_depth,
                 end_time,
             );
 
-            best_move = match search {
-                Ok((_, m)) => m,
-                Err(()) => return best_move,
+            let (search_score, search_move) = match search {
+                Ok((score, m)) => (score, m),
+                Err(()) => break,
             };
+
+            eprintln!("depth {} score {}", current_depth, search_score);
 
             assert_ne!(best_move, INVALID_MOVE, "Best move is invalid");
 
+            best_move = search_move;
             current_depth += 1;
         }
+
+        return best_move;
     }
 
     fn alpha_beta(
@@ -67,15 +73,7 @@ impl Searcher {
         }
 
         if state.is_game_over() {
-            let score = match (state.game_result(), state.player) {
-                (GameResult::PlayerAWon, Player::White)
-                | (GameResult::PlayerBWon, Player::Black) => 999_999,
-                (GameResult::PlayerBWon, Player::White)
-                | (GameResult::PlayerAWon, Player::Black) => -999_999,
-                (GameResult::Draw, _) => 0,
-                (GameResult::InProgress, _) => unreachable!(),
-            };
-            return Ok((score, INVALID_MOVE));
+            return Ok((self.game_over_eval(state), INVALID_MOVE));
         }
 
         if depth == 0 {
@@ -87,7 +85,7 @@ impl Searcher {
         let mut legal_moves = generate_moves(state);
         self.order_moves(&mut legal_moves);
 
-        let mut best_score = SCORE_MIN;
+        let mut best_score = -SCORE_INFINITY;
         let mut best_move = legal_moves[0];
 
         for m in legal_moves {
@@ -151,15 +149,29 @@ impl Searcher {
                 return 0;
             }
             // order by history first, then by move type
-            let history_score = self.history[Move::get_movetype(*m) as usize * 14 * 14
-                + Move::get_location(*m).y as usize * 14
-                + Move::get_location(*m).x as usize];
+            let history_score = self.history[self.move_history_idx(Move::unpack(*m))];
 
             let move_type_score = PIECE_DATA[Move::get_movetype(*m) as usize].len() as u32;
 
             history_score * 5 + move_type_score
         });
+
+        // Descending order
         moves.reverse();
+    }
+
+    fn game_over_eval(&self, state: &BoardState) -> i32 {
+        match state.game_result() {
+            GameResult::Win(p) => {
+                if p == state.player {
+                    SCORE_MAX
+                } else {
+                    -SCORE_MAX
+                }
+            }
+            GameResult::Draw => 0,
+            GameResult::InProgress => unreachable!(),
+        }
     }
 
     // from the persepective of the player to move
@@ -174,17 +186,18 @@ impl Searcher {
 
     fn white_eval(&self, state: &BoardState) -> i32 {
         let score = state.score().player_a as i32;
-        let corner_bonus = state.player_a_corner_moves.values().flatten().count() as i32;
-        score * 100 + corner_bonus
-
-        // return score;
+        let move_count = state.player_a_corner_moves.values().flatten().count() as i32;
+        score * 100 + move_count
     }
 
     fn black_eval(&self, state: &BoardState) -> i32 {
         let score = state.score().player_b as i32;
-        let corner_bonus = state.player_b_corner_moves.values().flatten().count() as i32;
-        score * 100 + corner_bonus
+        let move_count = state.player_b_corner_moves.values().flatten().count() as i32;
 
-        // return score;
+        score * 100 + move_count
+    }
+
+    fn move_history_idx(&self, mov: Move) -> usize {
+        mov.movetype as usize * 14 * 14 + mov.y as usize * 14 + mov.x as usize
     }
 }
