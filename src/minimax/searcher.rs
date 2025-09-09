@@ -12,6 +12,8 @@ const SCORE_INFINITY: i32 = 1_000_000;
 /// End of game score, if winning +max, if losing -max
 const SCORE_MAX: i32 = 999_999;
 
+const MAX_DEPTH: usize = 100;
+
 pub struct Searcher {
     transposition_table: TranspositionTable,
     history: [u32; 14 * 14 * 21],
@@ -31,9 +33,8 @@ impl Searcher {
 
         // the current best move, as found by the last full search
         let mut best_move = generate_moves(state)[0];
-        let mut current_depth = 1;
 
-        loop {
+        for current_depth in 1..=MAX_DEPTH {
             let search = self.alpha_beta(
                 state,
                 -SCORE_INFINITY,
@@ -53,7 +54,6 @@ impl Searcher {
             assert_ne!(best_move, INVALID_MOVE, "Best move is invalid");
 
             best_move = search_move;
-            current_depth += 1;
         }
 
         return best_move;
