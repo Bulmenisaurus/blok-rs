@@ -1,7 +1,8 @@
 use blok_rs::{
-    board::{BoardState, StartPosition},
+    board::{BoardState, GameResult, StartPosition},
     movegen::generate_moves,
 };
+use rand::{rng, seq::IndexedRandom};
 
 fn perft(board: &BoardState, depth: usize) -> u64 {
     let moves = generate_moves(board);
@@ -21,8 +22,21 @@ fn perft(board: &BoardState, depth: usize) -> u64 {
     nodes
 }
 
+fn playout(amount: usize) {
+    let mut rng = rng();
+    for _ in 0..amount {
+        let mut board = BoardState::new(StartPosition::Corner);
+        while board.game_result() == GameResult::InProgress {
+            let moves = generate_moves(&board);
+            let m = moves.choose(&mut rng).unwrap();
+            board.do_move(*m);
+        }
+    }
+}
+
 fn main() {
-    let board = BoardState::new(StartPosition::Corner);
-    let nodes = perft(&board, 3);
-    println!("{}", nodes);
+    playout(1_000);
+    // let board = BoardState::new(StartPosition::Corner);
+    // let nodes = perft(&board, 3);
+    // println!("{}", nodes);
 }
