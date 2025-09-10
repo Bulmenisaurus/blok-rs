@@ -8,4 +8,4 @@ profile.json.gz
 
 .venv
 
-executables/
+executables/*
