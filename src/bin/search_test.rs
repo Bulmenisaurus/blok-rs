@@ -1,15 +1,25 @@
 use blok_rs::board::BoardState;
+use blok_rs::board::GameResult;
 use blok_rs::board::StartPosition;
 use blok_rs::minimax::search;
+use blok_rs::movegen::generate_moves;
+use rand::rng;
+use rand::seq::IndexedRandom;
 
 pub fn main() {
     let mut board = BoardState::new(StartPosition::Corner);
 
+    let mut rng = rng();
     for _ in 0..10 {
-        board.do_move(search(&board, 100));
+        let moves = generate_moves(&board);
+        let m = moves.choose(&mut rng).unwrap();
+        board.do_move(*m);
+    }
+    while board.game_result() == GameResult::InProgress {
+        board.do_move(search(&board, 100_000));
     }
 
-    let best_move = search(&board, 1_000_000);
+    // let best_move = search(&board, 1_000_000);
 
-    println!("Best move: {}", best_move);
+    // println!("Best move: {}", best_move);
 }

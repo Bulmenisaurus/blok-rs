@@ -80,6 +80,30 @@ impl Searcher {
             return Ok((self.static_eval(state), INVALID_MOVE));
         }
 
+        // RFP: aggresively prunes moves that we predict will not be better than beta
+        let static_eval = self.static_eval(state);
+
+        let rfp_margin = 100 * depth as i32;
+        let RFP_DEPTH = 3;
+        if depth <= RFP_DEPTH {
+            if static_eval - rfp_margin > beta {
+                // println!(
+                //     "RFP candidate. Static eval: {}, beta: {}, alpha: {} depth: {}",
+                //     static_eval, beta, alpha, depth
+                // );
+                // println!(
+                //     "-----\n[{}]\n-----",
+                //     (0..14)
+                //         .map(|y| state.player_a_bit_board[y] as u32
+                //             | (state.player_b_bit_board[y] as u32) << 16)
+                //         .map(|x| x.to_string())
+                //         .collect::<Vec<String>>()
+                //         .join(", ")
+                // );
+                return Ok((beta, INVALID_MOVE));
+            }
+        }
+
         let mut alpha = alpha;
 
         let mut legal_moves = generate_moves(state);
