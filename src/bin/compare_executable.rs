@@ -2,23 +2,26 @@ use blok_rs::board::{BoardState, GameResult, Player, StartPosition};
 use blok_rs::movegen::generate_moves;
 use rand::rng;
 use rand::seq::IndexedRandom;
-use std::process::{Command, Stdio, exit};
+use rayon::prelude::*;
+use std::process::{Command, Stdio};
+use std::sync::{Arc, Mutex};
 
 /// Path to the two engine executables to compare.
 /// You may want to change these to the correct paths for your system.
-const ENGINE1_PATH: &str = "./executables/mcts-puct-latest";
+const ENGINE1_PATH: &str = "./executables/ab-latest";
 const ENGINE2_PATH: &str = "./executables/ab-latest";
 
 const OPENING_PLIES: usize = 6;
+const PARALLEL_GAMES: usize = 8;
 
 /// SPRT stuff
 const ELO_0: f64 = 0.0;
-const ELO_1: f64 = 10.0;
+const ELO_1: f64 = 30.0;
 
-const ALPHA: f64 = 0.05;
-const BETA: f64 = 0.05;
+const ALPHA: f64 = 0.10;
+const BETA: f64 = 0.10;
 
-const DRAW_RATE: f64 = 0.01;
+const DRAW_RATE: f64 = 0.10;
 
 fn elo_to_prob(elo: f64) -> f64 {
     1.0 / (1.0 + 10.0f64.powf(-elo / 400.0))
@@ -38,8 +41,22 @@ enum SPRTResult {
     NotSignificant,
 }
 
+#[derive(Clone)]
+struct GameTask<'a> {
+    engine_white: &'a str,
+    engine_black: &'a str,
+    opening: Vec<u32>,
+    perspective: GamePerspective,
+}
+
+#[derive(Clone, Copy)]
+enum GamePerspective {
+    Engine1,
+    Engine2,
+}
+
 struct SPRT {
-    LLR: f64,
+    llr: f64,
     total_wins: usize,
     total_losses: usize,
     total_draws: usize,
@@ -48,7 +65,7 @@ struct SPRT {
 impl SPRT {
     pub fn new() -> Self {
         Self {
-            LLR: 0.0,
+            llr: 0.0,
             total_wins: 0,
             total_losses: 0,
             total_draws: 0,
@@ -95,59 +112,90 @@ impl SPRT {
         self.total_draws += if result == Outcome::Draw { 1 } else { 0 };
 
         match result {
-            Outcome::Win => self.LLR += f64::ln(Self::get_p1_win() / Self::get_p0_win()),
-            Outcome::Draw => self.LLR += f64::ln(Self::get_p1_draw() / Self::get_p0_draw()),
-            Outcome::Lose => self.LLR += f64::ln(Self::get_p1_lose() / Self::get_p0_lose()),
+            Outcome::Win => self.llr += f64::ln(Self::get_p1_win() / Self::get_p0_win()),
+            Outcome::Draw => self.llr += f64::ln(Self::get_p1_draw() / Self::get_p0_draw()),
+            Outcome::Lose => self.llr += f64::ln(Self::get_p1_lose() / Self::get_p0_lose()),
         }
     }
 
     pub fn result(&self) -> SPRTResult {
-        if self.LLR < Self::get_sprt_a() {
+        if self.llr < Self::get_sprt_a() {
             return SPRTResult::SignificantNull;
         }
-        if self.LLR > Self::get_sprt_b() {
+        if self.llr > Self::get_sprt_b() {
             return SPRTResult::SignificantAlt;
         }
         return SPRTResult::NotSignificant;
     }
 }
 fn main() {
-    let mut sprt = SPRT::new();
+    let sprt = Arc::new(Mutex::new(SPRT::new()));
 
-    while sprt.result() == SPRTResult::NotSignificant {
-        // Generate a random opening for this pair
-        let opening = generate_opening();
+    while {
+        let sprt_guard = sprt.lock().unwrap();
+        sprt_guard.result() == SPRTResult::NotSignificant
+    } {
+        // Generate openings for parallel games
+        let openings: Vec<Vec<u32>> = (0..PARALLEL_GAMES).map(|_| generate_opening()).collect();
 
-        // Game 1: Engine1 as White, Engine2 as Black
-        let result1 = play_game(ENGINE1_PATH, ENGINE2_PATH, &opening);
-        match result1 {
-            GameResult::Win(Player::White) => sprt.update(Outcome::Win),
-            GameResult::Win(Player::Black) => sprt.update(Outcome::Lose),
-            GameResult::Draw => sprt.update(Outcome::Draw),
-            GameResult::InProgress => unreachable!(),
+        // Create game tasks for parallel execution
+        let game_tasks: Vec<_> = openings
+            .into_iter()
+            .flat_map(|opening| {
+                vec![
+                    GameTask {
+                        engine_white: ENGINE1_PATH,
+                        engine_black: ENGINE2_PATH,
+                        opening: opening.clone(),
+                        perspective: GamePerspective::Engine1,
+                    },
+                    GameTask {
+                        engine_white: ENGINE2_PATH,
+                        engine_black: ENGINE1_PATH,
+                        opening,
+                        perspective: GamePerspective::Engine2,
+                    },
+                ]
+            })
+            .collect();
+
+        // Run games in parallel
+        let results: Vec<Outcome> = game_tasks
+            .par_iter()
+            .map(|task| {
+                let result = play_game(task.engine_white, task.engine_black, &task.opening);
+                match (result, task.perspective) {
+                    (GameResult::Win(Player::White), GamePerspective::Engine1) => Outcome::Win,
+                    (GameResult::Win(Player::Black), GamePerspective::Engine1) => Outcome::Lose,
+                    (GameResult::Win(Player::White), GamePerspective::Engine2) => Outcome::Lose,
+                    (GameResult::Win(Player::Black), GamePerspective::Engine2) => Outcome::Win,
+                    (GameResult::Draw, _) => Outcome::Draw,
+                    (GameResult::InProgress, _) => unreachable!(),
+                }
+            })
+            .collect();
+
+        // Update SPRT with all results
+        {
+            let mut sprt_guard = sprt.lock().unwrap();
+            for result in results {
+                sprt_guard.update(result);
+            }
+
+            println!(
+                "WDL {} {} {} -> LLR {:.2} ({:.2}, {:.2})",
+                sprt_guard.total_wins,
+                sprt_guard.total_draws,
+                sprt_guard.total_losses,
+                sprt_guard.llr,
+                SPRT::get_sprt_a(),
+                SPRT::get_sprt_b()
+            );
         }
-
-        // Game 2: Engine2 as White, Engine1 as Black
-        let result2 = play_game(ENGINE2_PATH, ENGINE1_PATH, &opening);
-        match result2 {
-            GameResult::Win(Player::White) => sprt.update(Outcome::Lose),
-            GameResult::Win(Player::Black) => sprt.update(Outcome::Win),
-            GameResult::Draw => sprt.update(Outcome::Draw),
-            GameResult::InProgress => unreachable!(),
-        }
-
-        println!(
-            "WDL {} {} {} -> LLR {:.2} ({:.2}, {:.2})",
-            sprt.total_wins,
-            sprt.total_draws,
-            sprt.total_losses,
-            sprt.LLR,
-            SPRT::get_sprt_a(),
-            SPRT::get_sprt_b()
-        );
     }
 
-    match sprt.result() {
+    let sprt_guard = sprt.lock().unwrap();
+    match sprt_guard.result() {
         SPRTResult::SignificantNull => println!("Significant Null"),
         SPRTResult::SignificantAlt => println!("Significant Alt"),
         SPRTResult::NotSignificant => println!("Not Significant"),
