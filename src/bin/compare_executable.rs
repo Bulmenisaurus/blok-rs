@@ -15,11 +15,11 @@ const OPENING_PLIES: usize = 6;
 const PARALLEL_GAMES: usize = 8;
 
 /// SPRT stuff
-const ELO_0: f64 = 0.0;
-const ELO_1: f64 = 30.0;
+const ELO_0: f64 = -30.0;
+const ELO_1: f64 = 0.0;
 
-const ALPHA: f64 = 0.10;
-const BETA: f64 = 0.10;
+const ALPHA: f64 = 0.05;
+const BETA: f64 = 0.05;
 
 const DRAW_RATE: f64 = 0.10;
 

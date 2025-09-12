@@ -49,7 +49,10 @@ impl Searcher {
                 Err(()) => break,
             };
 
-            eprintln!("depth {} score {}", current_depth, search_score);
+            eprintln!(
+                "depth {} bestmove {} score {}",
+                current_depth, search_move, search_score,
+            );
 
             assert_ne!(best_move, INVALID_MOVE, "Best move is invalid");
 

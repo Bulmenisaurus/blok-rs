@@ -16,7 +16,7 @@ pub fn main() {
         board.do_move(*m);
     }
     while board.game_result() == GameResult::InProgress {
-        board.do_move(search(&board, 100_000));
+        board.do_move(search(&board, 2_000));
     }
 
     // let best_move = search(&board, 1_000_000);
