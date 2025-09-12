@@ -8,7 +8,7 @@ use std::sync::{Arc, Mutex};
 
 /// Path to the two engine executables to compare.
 /// You may want to change these to the correct paths for your system.
-const ENGINE1_PATH: &str = "./executables/ab-latest";
+const ENGINE1_PATH: &str = "./executables/ab-test";
 const ENGINE2_PATH: &str = "./executables/ab-latest";
 
 const OPENING_PLIES: usize = 6;
@@ -129,6 +129,11 @@ impl SPRT {
     }
 }
 fn main() {
+    println!(
+        "Starting comparison between {} and {}",
+        ENGINE1_PATH, ENGINE2_PATH
+    );
+    println!("SPRT elo bounds: {} - {}", ELO_0, ELO_1);
     let sprt = Arc::new(Mutex::new(SPRT::new()));
 
     while {
