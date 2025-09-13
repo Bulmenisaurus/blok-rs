@@ -16,12 +16,12 @@ const PARALLEL_GAMES: usize = 8;
 
 /// SPRT stuff
 const ELO_0: f64 = 0.0;
-const ELO_1: f64 = 10.0;
+const ELO_1: f64 = 5.0;
 
 const ALPHA: f64 = 0.05;
 const BETA: f64 = 0.05;
 
-const DRAW_RATE: f64 = 0.10;
+const DRAW_RATE: f64 = 0.05;
 
 fn elo_to_prob(elo: f64) -> f64 {
     1.0 / (1.0 + 10.0f64.powf(-elo / 400.0))

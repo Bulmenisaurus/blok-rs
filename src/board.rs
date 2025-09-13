@@ -1,6 +1,9 @@
 use std::collections::HashMap;
 
-use crate::movegen::{NULL_MOVE, PIECE_DATA, update_move_cache, update_move_cache_from_null_move};
+use crate::movegen::{
+    NULL_MOVE, PIECE_DATA, is_move_legal, is_move_legal_no_board, update_move_cache,
+    update_move_cache_from_null_move,
+};
 
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

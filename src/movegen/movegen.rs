@@ -102,6 +102,34 @@ impl Move {
 }
 
 pub fn is_move_legal(board: &BoardState, m: u32) -> bool {
+    let player = Move::get_player(m);
+    let my_remaining = if player == 0 {
+        board.player_a_remaining
+    } else {
+        board.player_b_remaining
+    };
+
+    let my_bitboard = if player == 0 {
+        board.player_a_bit_board
+    } else {
+        board.player_b_bit_board
+    };
+
+    let their_bitboard = if player == 0 {
+        board.player_b_bit_board
+    } else {
+        board.player_a_bit_board
+    };
+    is_move_legal_no_board(my_remaining, &my_bitboard, &their_bitboard, m)
+}
+
+pub fn is_move_legal_no_board(
+    my_remaining: u32,
+    my_bitboard: &[u16; 16],
+    their_bitboard: &[u16; 16],
+
+    m: u32,
+) -> bool {
     if m == NULL_MOVE {
         return true;
     }
@@ -116,28 +144,10 @@ pub fn is_move_legal(board: &BoardState, m: u32) -> bool {
         return false;
     }
 
-    let my_remaining = if player == 0 {
-        board.player_a_remaining
-    } else {
-        board.player_b_remaining
-    };
-
     // check if this move has already been placed
     if my_remaining & (1u32 << movetype) == 0 {
         return false;
     }
-
-    let my_bitboard = if player == 0 {
-        board.player_a_bit_board
-    } else {
-        board.player_b_bit_board
-    };
-
-    let their_bitboard = if player == 0 {
-        board.player_b_bit_board
-    } else {
-        board.player_a_bit_board
-    };
 
     let piece_bitboard = &ORIENTATIONS_BITBOARD_DATA[movetype as usize][orientation as usize];
 
@@ -158,7 +168,6 @@ pub fn is_move_legal(board: &BoardState, m: u32) -> bool {
 
     true
 }
-
 pub fn is_move_blokee_legal(m: &Move) -> bool {
     let move_tiles = &ORIENTATION_DATA[m.movetype as usize][m.orientation as usize];
 
@@ -443,17 +452,34 @@ pub fn update_move_cache(board: &mut BoardState, last_move: u32) {
 
     board.skip_turn();
 
-    let old_board = board.clone();
     if board.player == Player::White {
         board
             .player_a_corner_moves
             .iter_mut()
-            .for_each(|(coord, moves)| moves.retain(|m| is_move_legal(&old_board, *m)));
+            .for_each(|(coord, moves)| {
+                moves.retain(|m| {
+                    is_move_legal_no_board(
+                        board.player_a_remaining,
+                        &board.player_a_bit_board,
+                        &board.player_b_bit_board,
+                        *m,
+                    )
+                })
+            });
     } else {
         board
             .player_b_corner_moves
             .iter_mut()
-            .for_each(|(coord, moves)| moves.retain(|m| is_move_legal(&old_board, *m)));
+            .for_each(|(coord, moves)| {
+                moves.retain(|m| {
+                    is_move_legal_no_board(
+                        board.player_b_remaining,
+                        &board.player_b_bit_board,
+                        &board.player_a_bit_board,
+                        *m,
+                    )
+                })
+            });
     }
 }
 
