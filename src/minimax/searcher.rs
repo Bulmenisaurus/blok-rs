@@ -18,6 +18,7 @@ pub struct Searcher {
     transposition_table: TranspositionTable,
     history: [u32; 14 * 14 * 21],
     nodes: u32,
+    max_nodes: u32,
 }
 
 impl Searcher {
@@ -26,6 +27,7 @@ impl Searcher {
             transposition_table: TranspositionTable::new(),
             history: [0; 14 * 14 * 21],
             nodes: 0,
+            max_nodes: u32::MAX,
         }
     }
 
@@ -64,6 +66,14 @@ impl Searcher {
         return best_move;
     }
 
+    /// Search for the best move, but stop after a certain number of nodes
+    /// Useful for testing the engine's performance at a certain number of nodes
+    pub fn search_root_nodes(&mut self, state: &BoardState, nodes: u32) -> u32 {
+        self.max_nodes = nodes;
+        // an hour
+        let timeout_ms = 3_600_000;
+        self.search_root(state, timeout_ms)
+    }
     fn alpha_beta(
         &mut self,
         state: &BoardState,
@@ -74,6 +84,11 @@ impl Searcher {
         deadline: Instant,
     ) -> Result<(i32, u32), ()> {
         self.nodes += 1;
+
+        if self.nodes > self.max_nodes {
+            return Err(());
+        }
+
         if Instant::now() > deadline {
             return Err(());
         }

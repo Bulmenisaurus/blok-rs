@@ -1,7 +1,7 @@
 use blok_rs::board::BoardState;
 use blok_rs::board::GameResult;
 use blok_rs::board::StartPosition;
-use blok_rs::minimax::search;
+use blok_rs::minimax;
 use blok_rs::movegen::generate_moves;
 use rand::rng;
 use rand::seq::IndexedRandom;
@@ -16,7 +16,11 @@ pub fn main() {
         board.do_move(*m);
     }
     while board.game_result() == GameResult::InProgress {
-        board.do_move(search(&board, 2_000));
+        // Option 1: search nodes (for perf)
+        // board.do_move(minimax::search_nodes(&board, 2_000));
+
+        // Option 2: search (for benchmarking)
+        board.do_move(minimax::search(&board, 2_000));
     }
 
     // let best_move = search(&board, 1_000_000);
