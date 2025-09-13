@@ -49,8 +49,8 @@ fn main() {
         let (a, b) = matches.next().unwrap();
 
         let (left, right) = players.split_at_mut(b);
-        let mut player_a = &mut left[a];
-        let mut player_b = &mut right[0];
+        let player_a = &mut left[a];
+        let player_b = &mut right[0];
 
         println!(
             "[{}/{}] Playing game pair between {} and {}",
@@ -60,7 +60,7 @@ fn main() {
             player_b.name
         );
 
-        play_game_pair(&mut player_a, &mut player_b, &config);
+        play_game_pair(player_a, player_b, &config);
         pretty_print_ratings(&players);
     }
 }
@@ -92,7 +92,7 @@ fn play_game_pair(
         &player_a.rating,
         &player_b.rating,
         &game_pair_one_result,
-        &config,
+        config,
     );
 
     player_a.rating = updates_players.0;
@@ -112,7 +112,7 @@ fn play_game_pair(
         &player_b.rating,
         &player_a.rating,
         &game_pair_two_result,
-        &config,
+        config,
     );
 
     player_b.rating = updates_players.0;

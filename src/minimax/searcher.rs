@@ -3,7 +3,7 @@ use std::time::{Duration, Instant};
 use crate::{
     board::{BoardState, GameResult, Player},
     minimax::transposition_table::{TranspositionTable, TranspositionTableEntry},
-    movegen::{INVALID_MOVE, Move, NULL_MOVE, PIECE_DATA, generate_moves, move_zobrist_hash},
+    movegen::{INVALID_MOVE, Move, NULL_MOVE, PIECE_DATA, generate_moves},
 };
 
 /// Used for the bounds of alpha-beta pruning
@@ -63,7 +63,7 @@ impl Searcher {
             best_move = search_move;
         }
 
-        return best_move;
+        best_move
     }
 
     /// Search for the best move, but stop after a certain number of nodes
@@ -105,11 +105,9 @@ impl Searcher {
         let static_eval = self.static_eval(state);
 
         let rfp_margin = 100 * depth as i32;
-        let RFP_DEPTH = 3;
-        if depth <= RFP_DEPTH {
-            if static_eval - rfp_margin > beta {
-                return Ok((beta, INVALID_MOVE));
-            }
+        let rfp_depth = 3;
+        if depth <= rfp_depth && static_eval - rfp_margin > beta {
+            return Ok((beta, INVALID_MOVE));
         }
 
         let mut alpha = alpha;

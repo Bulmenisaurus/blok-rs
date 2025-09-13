@@ -4,6 +4,7 @@ use blok_rs::{
 };
 use rand::{rng, seq::IndexedRandom};
 
+#[allow(dead_code)]
 fn perft(board: &BoardState, depth: usize) -> u64 {
     let moves = generate_moves(board);
 
@@ -22,6 +23,7 @@ fn perft(board: &BoardState, depth: usize) -> u64 {
     nodes
 }
 
+#[allow(dead_code)]
 fn playout(amount: usize) {
     let mut rng = rng();
     for _ in 0..amount {

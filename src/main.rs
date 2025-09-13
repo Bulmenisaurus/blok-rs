@@ -1,6 +1,5 @@
-mod board;
-mod minimax;
-mod movegen;
+use blok_rs::board;
+use blok_rs::minimax;
 
 use futures_util::{SinkExt, StreamExt};
 use serde::{Deserialize, Serialize};

@@ -133,7 +133,7 @@ pub fn is_move_legal_no_board(
     if m == NULL_MOVE {
         return true;
     }
-    let player = Move::get_player(m);
+
     let location = Move::get_location(m);
     let movetype = Move::get_movetype(m);
     let orientation = Move::get_orientation(m);
@@ -151,8 +151,8 @@ pub fn is_move_legal_no_board(
 
     let piece_bitboard = &ORIENTATIONS_BITBOARD_DATA[movetype as usize][orientation as usize];
 
-    for bb_y in 0..piece_bitboard.len() {
-        let bitboard_row = piece_bitboard[bb_y] << location.x;
+    for (bb_y, row) in piece_bitboard.iter().enumerate() {
+        let bitboard_row = row << location.x;
         let idx = location.y as usize + bb_y + 1;
         let game_row = their_bitboard[idx]
             | my_bitboard[idx]
@@ -456,7 +456,7 @@ pub fn update_move_cache(board: &mut BoardState, last_move: u32) {
         board
             .player_a_corner_moves
             .iter_mut()
-            .for_each(|(coord, moves)| {
+            .for_each(|(_coord, moves)| {
                 moves.retain(|m| {
                     is_move_legal_no_board(
                         board.player_a_remaining,
@@ -470,7 +470,7 @@ pub fn update_move_cache(board: &mut BoardState, last_move: u32) {
         board
             .player_b_corner_moves
             .iter_mut()
-            .for_each(|(coord, moves)| {
+            .for_each(|(_coord, moves)| {
                 moves.retain(|m| {
                     is_move_legal_no_board(
                         board.player_b_remaining,
