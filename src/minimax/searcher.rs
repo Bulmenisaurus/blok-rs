@@ -3,7 +3,7 @@ use std::time::{Duration, Instant};
 use crate::{
     board::{BoardState, GameResult, Player},
     minimax::transposition_table::{TranspositionTable, TranspositionTableEntry},
-    movegen::{INVALID_MOVE, Move, NULL_MOVE, PIECE_DATA, generate_moves},
+    movegen::{INVALID_MOVE, Move, NULL_MOVE, PIECE_DATA, generate_moves, move_zobrist_hash},
 };
 
 /// Used for the bounds of alpha-beta pruning

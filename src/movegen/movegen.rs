@@ -329,12 +329,17 @@ pub fn get_legal_moves_from(from: Coord, movetype: u8, board: &BoardState) -> Ve
     legal_moves
 }
 
-fn update_hash(board: &mut BoardState, mov: &Move) {
+pub fn move_zobrist_hash(mov: &Move, board: &BoardState) -> u64 {
+    if mov.movetype == 31 {
+        return NULL_MOVE_COUNT_ZOBRIST[board.null_move_counter as usize];
+    }
     let my_zobrist = if mov.player == 0 {
         &PLAYER_A_ZOBRIST
     } else {
         &PLAYER_B_ZOBRIST
     };
+
+    let mut hash = 0;
 
     let tiles = &ORIENTATION_DATA[mov.movetype as usize][mov.orientation as usize];
     for tile in tiles {
@@ -342,10 +347,15 @@ fn update_hash(board: &mut BoardState, mov: &Move) {
             x: tile.x + mov.x,
             y: tile.y + mov.y,
         };
-        board.hash ^= my_zobrist[absolute_tile.y as usize * 14 + absolute_tile.x as usize];
+        hash ^= my_zobrist[absolute_tile.y as usize * 14 + absolute_tile.x as usize];
     }
 
-    board.hash ^= NULL_MOVE_COUNT_ZOBRIST[board.null_move_counter as usize];
+    hash ^= NULL_MOVE_COUNT_ZOBRIST[board.null_move_counter as usize];
+
+    hash
+}
+fn update_hash(board: &mut BoardState, mov: &Move) {
+    board.hash ^= move_zobrist_hash(mov, board);
 }
 
 fn update_null_hash(board: &mut BoardState) {
