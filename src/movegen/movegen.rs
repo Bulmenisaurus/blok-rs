@@ -45,18 +45,18 @@ pub static SHORT_BOUNDING_BOX_DATA: Lazy<Vec<Vec<(u8, u8)>>> = Lazy::new(|| {
 pub const NULL_MOVE: u32 = 0xf800;
 pub const INVALID_MOVE: u32 = 0xf801;
 
-// An unpacked move, with all the information
+/// An unpacked move, with all the information
 #[derive(Clone, Copy, Debug)]
 pub struct Move {
-    // Orientation, 0-7
+    /// Orientation, 0-7
     pub orientation: u8,
-    // Y coordinate, 0-13
+    /// Y coordinate, 0-13
     pub y: u8,
-    // X coordinate, 0-13
+    /// X coordinate, 0-13
     pub x: u8,
-    // Move type, 0-20 i think
+    /// Move type, 0-20 i think
     pub movetype: u8,
-    // Player, 0-1
+    /// Player, 0-1
     pub player: u8,
 }
 
@@ -101,6 +101,9 @@ impl Move {
     }
 }
 
+/// Check if a move is legal
+/// This method does not check if there is a corner!
+/// It only makes sure that the move is in bounds and not intersecting with any other pieces or touching any of our pieces.
 pub fn is_move_legal(board: &BoardState, m: u32) -> bool {
     let player = Move::get_player(m);
     let my_remaining = if player == 0 {
@@ -123,6 +126,8 @@ pub fn is_move_legal(board: &BoardState, m: u32) -> bool {
     is_move_legal_no_board(my_remaining, &my_bitboard, &their_bitboard, m)
 }
 
+/// Used to avoid a clone of the board when updating the move cache.
+/// Since we need a mutable reference to the board, we can't use it immutably in `is_move_legal`
 pub fn is_move_legal_no_board(
     my_remaining: u32,
     my_bitboard: &[u16; 16],
@@ -130,6 +135,8 @@ pub fn is_move_legal_no_board(
 
     m: u32,
 ) -> bool {
+    // Null moves are assumed to be legal if generated
+    // However, null move cannot always be played, the burden is on the caller to check if it is legal
     if m == NULL_MOVE {
         return true;
     }
@@ -151,6 +158,7 @@ pub fn is_move_legal_no_board(
 
     let piece_bitboard = &ORIENTATIONS_BITBOARD_DATA[movetype as usize][orientation as usize];
 
+    // check if the move intersects with any of their pieces or adjacent to any of our pieces
     for (bb_y, row) in piece_bitboard.iter().enumerate() {
         let bitboard_row = row << location.x;
         let idx = location.y as usize + bb_y + 1;
@@ -168,6 +176,7 @@ pub fn is_move_legal_no_board(
 
     true
 }
+
 pub fn is_move_blokee_legal(m: &Move) -> bool {
     let move_tiles = &ORIENTATION_DATA[m.movetype as usize][m.orientation as usize];
 
@@ -184,9 +193,7 @@ pub fn is_move_blokee_legal(m: &Move) -> bool {
         }
     })
 }
-
-// Rules for the first move are different
-
+/// Rules for the first move are different
 pub fn generate_first_moves(board: &BoardState) -> Vec<u32> {
     // Get the starting position for the current player
     let (start_a, start_b) = get_start_position_coord(board.start_position);
@@ -216,7 +223,6 @@ pub fn generate_first_moves(board: &BoardState) -> Vec<u32> {
                     y: start_pos.y - (tile.y),
                 };
 
-                // Build the move representation (assuming Move is u32, otherwise adjust)
                 let mov = Move {
                     y: piece_middle.y,
                     x: piece_middle.x,
@@ -232,15 +238,7 @@ pub fn generate_first_moves(board: &BoardState) -> Vec<u32> {
                     continue;
                 }
 
-                // Serialize the move to u32 or whatever is needed
-                let packed = mov.pack();
-                if Move::get_movetype(packed) == 16 && Move::get_orientation(packed) == 1 {
-                    println!(
-                        "GEN weird move: movetype: {}, orientation: {}, from move: {:?} -> {}",
-                        mov.movetype, mov.orientation, mov, packed
-                    );
-                }
-                moves.push(packed);
+                moves.push(mov.pack());
             }
         }
     }
@@ -252,6 +250,7 @@ pub fn generate_first_moves(board: &BoardState) -> Vec<u32> {
         .collect()
 }
 
+/// Use the move cache to generate moves
 pub fn generate_moves(board: &BoardState) -> Vec<u32> {
     if board.is_game_over() {
         return vec![];
@@ -274,6 +273,7 @@ pub fn generate_moves(board: &BoardState) -> Vec<u32> {
         &board.player_b_corner_moves
     };
 
+    // Since the same move can be generated from multiple corners, we need to deduplicate them
     let mut unique_moves: Vec<u32> = my_corner_moves.values().flatten().cloned().collect();
     unique_moves.sort_unstable();
     unique_moves.dedup();
@@ -285,6 +285,8 @@ pub fn generate_moves(board: &BoardState) -> Vec<u32> {
     unique_moves
 }
 
+/// Used to generate moves from a corner when a new piece is placed
+// TODO: hardcode some options for moves that are guaranteed to not intersect the piece we are placing
 pub fn get_legal_moves_from(from: Coord, movetype: u8, board: &BoardState) -> Vec<u32> {
     let mut legal_moves: Vec<u32> = Vec::new();
     let orientation_data = &ORIENTATION_DATA[movetype as usize];
@@ -322,6 +324,7 @@ pub fn get_legal_moves_from(from: Coord, movetype: u8, board: &BoardState) -> Ve
     legal_moves
 }
 
+/// Used to hash a move for the Zobrist hash
 pub fn move_zobrist_hash(mov: &Move, board: &BoardState) -> u64 {
     if mov.movetype == 31 {
         return NULL_MOVE_COUNT_ZOBRIST[board.null_move_counter as usize];

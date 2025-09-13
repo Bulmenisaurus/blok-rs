@@ -66,23 +66,23 @@ pub enum GameResult {
 
 #[derive(Debug, Clone)]
 pub struct BoardState {
-    // Player to move
+    /// Player to move
     pub player: Player,
 
-    // Remaining pieces for each player, as a bitmask
+    /// Remaining pieces for each player, as a bitmask
     pub player_a_remaining: u32,
     pub player_b_remaining: u32,
 
-    // Bitboards for tiles placed
+    /// Bitboards for tiles placed
     pub player_a_bit_board: [u16; 16],
     pub player_b_bit_board: [u16; 16],
 
     pub start_position: StartPosition,
 
-    // How many null moves have been made (>= 2 in a row is game end)
+    /// How many null moves have been made (>= 2 in a row is game end)
     pub null_move_counter: u8,
 
-    // Cached corner moves
+    /// Cached corner moves
     pub player_a_corner_moves: HashMap<Coord, Vec<u32>>,
     pub player_b_corner_moves: HashMap<Coord, Vec<u32>>,
 
