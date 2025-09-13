@@ -74,8 +74,8 @@ pub struct BoardState {
     pub player_b_remaining: u32,
 
     // Bitboards for tiles placed
-    pub player_a_bit_board: [u16; 14],
-    pub player_b_bit_board: [u16; 14],
+    pub player_a_bit_board: [u16; 16],
+    pub player_b_bit_board: [u16; 16],
 
     pub start_position: StartPosition,
 
@@ -95,8 +95,8 @@ impl BoardState {
             player: Player::White,
             player_a_remaining: 0x1fffff,
             player_b_remaining: 0x1fffff,
-            player_a_bit_board: [0; 14],
-            player_b_bit_board: [0; 14],
+            player_a_bit_board: [0; 16],
+            player_b_bit_board: [0; 16],
             null_move_counter: 0,
             start_position,
             player_a_corner_moves: HashMap::new(),

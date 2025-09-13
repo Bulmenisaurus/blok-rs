@@ -8,8 +8,7 @@ use rand::seq::IndexedRandom;
 
 pub fn main() {
     let mut board = BoardState::new(StartPosition::Corner);
-    minimax::search(&board, 1_000_000);
-    /*
+
     let mut rng = rng();
     for _ in 0..10 {
         let moves = generate_moves(&board);
@@ -24,7 +23,6 @@ pub fn main() {
         board.do_move(minimax::search(&board, 10_000));
     }
 
-    */
     // let best_move = search(&board, 1_000_000);
 
     // println!("Best move: {}", best_move);

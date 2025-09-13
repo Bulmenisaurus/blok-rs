@@ -22,11 +22,6 @@ pub static ORIENTATIONS_BITBOARD_DATA: Lazy<Vec<Vec<Vec<u16>>>> = Lazy::new(|| {
     serde_json::from_str(json_str).unwrap()
 });
 
-pub static ORIENTATIONS_BITBOARD_HALO_DATA: Lazy<Vec<Vec<Vec<u16>>>> = Lazy::new(|| {
-    let json_str = include_str!("piece-orientations-bitboard-halo.json");
-    serde_json::from_str(json_str).unwrap()
-});
-
 // pub static RR_DATA: Lazy<Vec<Vec<u32>>> = Lazy::new(|| {
 //     let json_str = include_str!("piece-rr.json");
 //     serde_json::from_str(json_str).unwrap()
@@ -146,26 +141,15 @@ pub fn is_move_legal(board: &BoardState, m: u32) -> bool {
 
     let piece_bitboard = &ORIENTATIONS_BITBOARD_DATA[movetype as usize][orientation as usize];
 
-    // check for intersection or adjacency with my pieces
-    let halo_data = &ORIENTATIONS_BITBOARD_HALO_DATA[movetype as usize][orientation as usize];
-
-    for bb_y in 0..piece_bitboard.len() + 2 {
-        if location.y as usize + bb_y == 0 || location.y as usize + bb_y > my_bitboard.len() {
-            continue;
-        }
-        let cached_halo = halo_data[bb_y] << location.x;
-        // shift by 1 to match the halo data
-        let game_row = my_bitboard[location.y as usize + bb_y - 1] << 1;
-        if (cached_halo & game_row) != 0 {
-            return false;
-        }
-    }
-
-    // check if there's an intersection with opponent
-
     for bb_y in 0..piece_bitboard.len() {
         let bitboard_row = piece_bitboard[bb_y] << location.x;
-        let game_row = their_bitboard[location.y as usize + bb_y];
+        let idx = location.y as usize + bb_y + 1;
+        let game_row = their_bitboard[idx]
+            | my_bitboard[idx]
+            | my_bitboard[idx] << 1
+            | my_bitboard[idx] >> 1
+            | my_bitboard[idx - 1]
+            | my_bitboard[idx + 1];
 
         if bitboard_row & game_row != 0 {
             return false;
@@ -385,7 +369,7 @@ pub fn update_move_cache(board: &mut BoardState, last_move: u32) {
         &ORIENTATIONS_BITBOARD_DATA[mov.movetype as usize][mov.orientation as usize];
 
     for bb_y in 0..piece_bitboard.len() {
-        my_bitboard[mov.y as usize + bb_y] |= piece_bitboard[bb_y] << mov.x;
+        my_bitboard[mov.y as usize + bb_y + 1] |= piece_bitboard[bb_y] << mov.x;
     }
 
     // Update the corner data.
@@ -459,30 +443,17 @@ pub fn update_move_cache(board: &mut BoardState, last_move: u32) {
 
     board.skip_turn();
 
-    // filter opponent's moves (now the player to move)
-    let opponent_cached_moves: Vec<Coord> = if board.player == Player::White {
-        board.player_a_corner_moves.keys().cloned().collect()
+    let old_board = board.clone();
+    if board.player == Player::White {
+        board
+            .player_a_corner_moves
+            .iter_mut()
+            .for_each(|(coord, moves)| moves.retain(|m| is_move_legal(&old_board, *m)));
     } else {
-        board.player_b_corner_moves.keys().cloned().collect()
-    };
-
-    for coord in opponent_cached_moves {
-        let old_moves = if board.player == Player::White {
-            board.player_a_corner_moves.get_mut(&coord).unwrap().clone()
-        } else {
-            board.player_b_corner_moves.get_mut(&coord).unwrap().clone()
-        };
-
-        let new_moves: Vec<u32> = old_moves
-            .into_iter()
-            .filter(|m| is_move_legal(board, *m))
-            .collect();
-
-        if board.player == Player::White {
-            board.player_a_corner_moves.insert(coord, new_moves);
-        } else {
-            board.player_b_corner_moves.insert(coord, new_moves);
-        }
+        board
+            .player_b_corner_moves
+            .iter_mut()
+            .for_each(|(coord, moves)| moves.retain(|m| is_move_legal(&old_board, *m)));
     }
 }
 

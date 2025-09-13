@@ -80,16 +80,18 @@ pub fn game_length_movegen() {
 
     for single_game_data in test_data {
         let mut game = BoardState::new(StartPosition::Corner);
+        let mut game_moves = Vec::new();
 
         for move_data in single_game_data {
             game.do_move(move_data[0]);
+            game_moves.push(move_data[0]);
             let mut moves = movegen::generate_moves(&game);
             moves.sort();
 
             let mut expected_moves = move_data[1..].to_vec();
             expected_moves.sort();
 
-            assert_eq!(moves, expected_moves);
+            assert_eq!(moves, expected_moves, "Game moves: {:?}", game_moves);
         }
     }
 }
