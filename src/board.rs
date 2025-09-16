@@ -26,7 +26,7 @@ pub struct Coord {
 
 impl Coord {
     pub fn in_bounds(&self) -> bool {
-        self.x < 14 && self.y < 14
+        self.x < 14 && self.y < 14 && self.x >= 0 && self.y >= 0
     }
 }
 
@@ -86,6 +86,8 @@ pub struct BoardState {
     pub player_a_bit_moves: [u128; 196],
     pub player_b_bit_moves: [u128; 196],
 
+    pub history: Vec<u32>,
+
     pub hash: u64,
 }
 
@@ -104,6 +106,7 @@ impl BoardState {
             corner_direction: [0; 196],
             player_a_bit_moves: [0; 196],
             player_b_bit_moves: [0; 196],
+            history: Vec::new(),
             hash: 0,
         }
     }
@@ -150,6 +153,7 @@ impl BoardState {
 
     // change states, incrementally update move cache
     pub fn do_move(&mut self, board_move: u32) {
+        self.history.push(board_move);
         if board_move == NULL_MOVE {
             self.null_move_counter += 1;
             self.skip_turn();
@@ -166,5 +170,15 @@ impl BoardState {
 
     pub fn skip_turn(&mut self) {
         self.player = self.player.other();
+    }
+
+    pub fn serialize(&self) -> String {
+        let serialized = (1..15)
+            .map(|y| self.player_a_bit_board[y] as u32 | (self.player_b_bit_board[y] as u32) << 16)
+            .map(|x| format!("{}", x))
+            .collect::<Vec<String>>()
+            .join(", ");
+
+        format!("[{}]", serialized)
     }
 }

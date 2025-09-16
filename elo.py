@@ -1,8 +1,9 @@
 # completely chatgpt generated, take with a grain of salt
 import math
-from scipy.stats import norm
 
 def elo_diff_from_results(wins, draws, losses, confidence=0.95):
+    from scipy.stats import norm
+    
     n = wins + draws + losses
     if n == 0:
         raise ValueError("No games played.")

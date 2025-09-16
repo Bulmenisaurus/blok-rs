@@ -5,6 +5,20 @@ use crate::board::{BoardState, Coord, Player, StartPosition, get_start_position_
 use crate::movegen::zobrist::{NULL_MOVE_COUNT_ZOBRIST, PLAYER_A_ZOBRIST, PLAYER_B_ZOBRIST};
 use once_cell::sync::Lazy;
 
+#[derive(serde::Deserialize, Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub enum CornerDirection {
+    NW = 0,
+    NE = 1,
+    SE = 2,
+    SW = 3,
+}
+#[derive(serde::Deserialize, Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+struct CoordWithDirection {
+    x: i32,
+    y: i32,
+    d: u8,
+}
+
 pub static PIECE_DATA: Lazy<Vec<Vec<Coord>>> = Lazy::new(|| {
     let json_str = include_str!("pieces.json");
     serde_json::from_str(json_str).unwrap()
@@ -20,18 +34,13 @@ pub static ORIENTATIONS_BITBOARD_DATA: Lazy<Vec<Vec<Vec<u16>>>> = Lazy::new(|| {
     serde_json::from_str(json_str).unwrap()
 });
 
-// pub static RR_DATA: Lazy<Vec<Vec<u32>>> = Lazy::new(|| {
-//     let json_str = include_str!("piece-rr.json");
-//     serde_json::from_str(json_str).unwrap()
-// });
-
 pub static CORNERS_DATA: Lazy<Vec<Vec<Vec<Coord>>>> = Lazy::new(|| {
     let json_str = include_str!("piece-corners.json");
     serde_json::from_str(json_str).unwrap()
 });
 
-pub static CORNER_ATTACHERS_DATA: Lazy<Vec<Vec<Vec<Coord>>>> = Lazy::new(|| {
-    let json_str = include_str!("piece-corner-attachers.json");
+static CORNER_ATTACHERS_DIR_DATA: Lazy<Vec<Vec<Vec<CoordWithDirection>>>> = Lazy::new(|| {
+    let json_str = include_str!("piece-corner-attachers-dir.json");
     serde_json::from_str(json_str).unwrap()
 });
 
@@ -40,7 +49,10 @@ pub static SHORT_BOUNDING_BOX_DATA: Lazy<Vec<Vec<(u8, u8)>>> = Lazy::new(|| {
     serde_json::from_str(json_str).unwrap()
 });
 
+// Note: center is 7, 7
+// This was achieved by placing a 1x1 piece at 7, 7 and then getting the moves from the corners
 static CORNER_MOVES_DATA: [[u32; 127]; 4] = [
+    // Direction::NW (6, 6)
     [
         426, 427, 431, 438, 664, 665, 668, 693, 797, 814, 2478, 2479, 2482, 2483, 2602, 2712, 2717,
         2721, 2731, 2732, 2841, 2844, 4523, 4527, 4530, 4534, 4654, 4760, 4764, 4773, 4777, 4778,
@@ -53,6 +65,7 @@ static CORNER_MOVES_DATA: [[u32; 127]; 4] = [
         31273, 31280, 31394, 31400, 31403, 31523, 33584, 35505, 35624, 37425, 37664, 39345, 39704,
         41265, 41744,
     ],
+    // Direction::NE (8, 6)
     [
         687, 924, 1048, 1049, 1053, 1066, 1067, 1070, 1076, 1079, 2858, 2968, 2973, 2987, 3097,
         3100, 3104, 3117, 3118, 3119, 3122, 3123, 4907, 5016, 5020, 5039, 5145, 5149, 5156, 5160,
@@ -65,6 +78,7 @@ static CORNER_MOVES_DATA: [[u32; 127]; 4] = [
         29737, 29747, 31650, 31657, 31779, 31784, 31786, 31793, 33840, 35880, 35889, 37920, 37937,
         39960, 39985, 42000, 42033,
     ],
+    // Direction::SE (8, 8)
     [
         706, 961, 1065, 1082, 1088, 1091, 1092, 1093, 1094, 1095, 2887, 3008, 3013, 3014, 3120,
         3133, 3134, 3135, 3137, 3138, 3139, 3140, 4934, 5057, 5058, 5061, 5173, 5177, 5178, 5182,
@@ -77,6 +91,7 @@ static CORNER_MOVES_DATA: [[u32; 127]; 4] = [
         29762, 29763, 31680, 31683, 31800, 31803, 31809, 31810, 33856, 35904, 35905, 37952, 37953,
         40000, 40001, 42048, 42049,
     ],
+    // Direction::SW (6, 8)
     [
         443, 450, 454, 455, 680, 705, 708, 709, 832, 835, 2494, 2495, 2498, 2499, 2631, 2737, 2748,
         2752, 2757, 2758, 2881, 2884, 4539, 4543, 4546, 4550, 4675, 4788, 4792, 4801, 4805, 4807,
@@ -148,13 +163,6 @@ impl Move {
             player: Self::get_player(packed),
         }
     }
-}
-
-pub enum CornerDirection {
-    NW,
-    NE,
-    SE,
-    SW,
 }
 
 /// Check if a move is legal
@@ -341,43 +349,68 @@ pub fn generate_moves(board: &BoardState) -> Vec<u32> {
     unique_moves
 }
 
-/// Used to generate moves from a corner when a new piece is placed
-// TODO: hardcode some options for moves that are guaranteed to not intersect the piece we are placing
-pub fn get_legal_moves_from(from: Coord, movetype: u8, board: &BoardState) -> Vec<u32> {
-    let mut legal_moves: Vec<u32> = Vec::new();
-    let orientation_data = &ORIENTATION_DATA[movetype as usize];
+// the cache moves are calculated from a fixed point (branching off of 7,7) so we need to translate the move to the correct position
+pub fn update_cache_corner_move(
+    cache_move: u32,
+    direction: CornerDirection,
+    position: Coord,
+    player: Player,
+    board: &BoardState,
+) -> Option<u32> {
+    let mov = Move::unpack(cache_move);
 
-    for i in 0..orientation_data.len() {
-        let corners = &CORNERS_DATA[movetype as usize][i];
-        for corner in corners {
-            if from.x < corner.x || from.y < corner.y {
-                continue;
-            }
+    // how this corner attacher is offset from the corner itself
+    let move_center_offset: (i32, i32) = match direction {
+        CornerDirection::NW => (-1, -1),
+        CornerDirection::NE => (1, -1),
+        CornerDirection::SE => (1, 1),
+        CornerDirection::SW => (-1, 1),
+    };
+    // since our cache is calculated from 7,7, we need to add the offset to the move
+    let move_absolute_offset: (i32, i32) = (7 + move_center_offset.0, 7 + move_center_offset.1);
 
-            let coord = Coord {
-                x: from.x - corner.x,
-                y: from.y - corner.y,
-            };
+    let mov_coord = Coord {
+        x: mov.x + position.x - move_absolute_offset.0,
+        y: mov.y + position.y - move_absolute_offset.1,
+    };
 
-            if !coord.in_bounds() {
-                continue;
-            }
-
-            let mov = Move {
-                orientation: i as u8,
-                y: coord.y,
-                x: coord.x,
-                player: board.player as u8,
-                movetype,
-            };
-
-            if is_move_legal(board, mov.pack()) {
-                legal_moves.push(mov.pack());
-            }
-        }
+    if !mov_coord.in_bounds() {
+        return None;
     }
 
-    legal_moves
+    let mov = Move {
+        orientation: mov.orientation,
+        y: mov_coord.y,
+        x: mov_coord.x,
+        player: player as u8,
+        movetype: mov.movetype,
+    };
+
+    if is_move_legal(board, mov.pack()) {
+        return Some(mov.pack());
+    }
+
+    None
+}
+/// Used to generate moves from a corner when a new piece is placed
+// TODO: hardcode some options for moves that are guaranteed to not intersect the piece we are placing
+pub fn get_legal_moves_from(from: Coord, board: &BoardState) -> Vec<u32> {
+    let corner_direction = board.corner_direction[from.y as usize * 14 + from.x as usize];
+    let corner_direction = match corner_direction {
+        0 => CornerDirection::NW,
+        1 => CornerDirection::NE,
+        2 => CornerDirection::SE,
+        3 => CornerDirection::SW,
+        _ => panic!("Invalid corner direction: {}", corner_direction),
+    };
+
+    let cached_moves = CORNER_MOVES_DATA[corner_direction as usize];
+    let cached_moves_fixed = cached_moves
+        .iter()
+        .filter_map(|m| update_cache_corner_move(*m, corner_direction, from, board.player, board))
+        .collect();
+
+    cached_moves_fixed
 }
 
 /// Used to hash a move for the Zobrist hash
@@ -457,14 +490,10 @@ pub fn update_move_cache(board: &mut BoardState, last_move: u32) {
         board.player_b_corner_moves.remove(&absolute_corner);
     }
 
-    let my_remaining_pieces = if board.player == Player::White {
-        board.player_a_remaining
-    } else {
-        board.player_b_remaining
-    };
-
-    let corner_attachers = &CORNER_ATTACHERS_DATA[mov.movetype as usize][mov.orientation as usize];
+    let corner_attachers =
+        &CORNER_ATTACHERS_DIR_DATA[mov.movetype as usize][mov.orientation as usize];
     for corner in corner_attachers {
+        // If this corner is not in bounds, skip
         if (corner.x < 0 && -corner.x > mov.x) || (corner.y < 0 && -corner.y > mov.y) {
             continue;
         }
@@ -478,6 +507,12 @@ pub fn update_move_cache(board: &mut BoardState, last_move: u32) {
             continue;
         }
 
+        // now we update corner directions
+        // I'm pretty sure we can just overwrite the direction for this corner, ignoring any other direction assigned here before
+        // this is because the valid moves from this corner should be the intersection of the valid moves from the other corners, which is still a subset of the valid moves from this direction
+        board.corner_direction[absolute_corner.y as usize * 14 + absolute_corner.x as usize] =
+            corner.d;
+
         if board.player == Player::White {
             if board.player_a_corner_moves.contains_key(&absolute_corner) {
                 continue;
@@ -486,17 +521,7 @@ pub fn update_move_cache(board: &mut BoardState, last_move: u32) {
             continue;
         }
 
-        let mut legal_moves: Vec<u32> = Vec::new();
-
-        for unplaced_piece in 0..21 {
-            if my_remaining_pieces & (1 << unplaced_piece) == 0 {
-                continue;
-            }
-
-            let movetype = unplaced_piece as u8;
-
-            legal_moves.extend(get_legal_moves_from(absolute_corner, movetype, board));
-        }
+        let legal_moves: Vec<u32> = get_legal_moves_from(absolute_corner, board);
 
         if board.player == Player::White {
             board

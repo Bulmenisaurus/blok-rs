@@ -39,6 +39,6 @@ fn playout(amount: usize) {
 fn main() {
     playout(1_000);
     // let board = BoardState::new(StartPosition::Corner);
-    // let nodes = perft(&board, 3);
+    // let nodes = perft(&board, 4);
     // println!("{}", nodes);
 }
