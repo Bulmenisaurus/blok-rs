@@ -2,7 +2,7 @@ use std::time::{Duration, Instant};
 
 use crate::{
     board::{BoardState, GameResult, Player},
-    minimax::transposition_table::{TranspositionTable, TranspositionTableEntry},
+    minimax::transposition_table::{TTFlag, TranspositionTable, TranspositionTableEntry},
     movegen::{INVALID_MOVE, Move, NULL_MOVE, PIECE_DATA, generate_moves},
 };
 
@@ -101,6 +101,32 @@ impl Searcher {
             return Ok((self.static_eval(state), INVALID_MOVE));
         }
 
+        let root_node = depth == max_depth;
+
+        // check tt for cutoffs
+        // however, this should only be done for non-root nodes
+        let mut tt_move = INVALID_MOVE;
+        if !root_node {
+            let tt_entry = self.transposition_table.get(state.hash);
+
+            // This tt entry exists and is at least as deep as the current depth
+            if let Some(tt_entry) = tt_entry {
+                if tt_entry.depth >= depth {
+                    // Make sure that this tt entry is actually useful
+                    if tt_entry.flag == TTFlag::Exact
+                        || tt_entry.flag == TTFlag::LowerBound && tt_entry.score >= beta
+                        || tt_entry.flag == TTFlag::UpperBound && tt_entry.score < alpha
+                    {
+                        return Ok((tt_entry.score, INVALID_MOVE));
+                    }
+                }
+
+                // otherwise, we can still use the tt move for ordering
+
+                tt_move = tt_entry.best_move;
+            }
+        }
+
         // RFP: aggresively prunes moves that we predict will not be better than beta
         let static_eval = self.static_eval(state);
 
@@ -113,40 +139,20 @@ impl Searcher {
         let mut alpha = alpha;
 
         let mut legal_moves = generate_moves(state);
-        self.order_moves(&mut legal_moves);
+        self.order_moves(&mut legal_moves, tt_move);
 
         let mut best_score = -SCORE_INFINITY;
+        let mut hash_bound = TTFlag::UpperBound;
         let mut best_move = legal_moves[0];
 
         for m in legal_moves {
             let mut new_state = state.clone();
             new_state.do_move(m);
 
-            // Only use the TT if it's at least as deep as the current depth
-            let tt_entry = self
-                .transposition_table
-                .get(new_state.hash)
-                .and_then(|entry| {
-                    if entry.depth >= depth {
-                        Some(entry.score)
-                    } else {
-                        None
-                    }
-                });
-
-            let score: i32;
-
-            if let Some(tt_score) = tt_entry {
-                score = tt_score;
-            } else {
-                // otherwise, do a full search and store the result in the TT
-                score = -self
-                    .alpha_beta(&new_state, -beta, -alpha, depth - 1, max_depth, deadline)?
-                    .0;
-
-                self.transposition_table
-                    .insert(new_state.hash, TranspositionTableEntry { score, depth });
-            }
+            // otherwise, do a full search and store the result in the TT
+            let score = -self
+                .alpha_beta(&new_state, -beta, -alpha, depth - 1, max_depth, deadline)?
+                .0;
 
             if score > best_score {
                 best_score = score;
@@ -154,10 +160,12 @@ impl Searcher {
             }
             if score > alpha {
                 alpha = score;
+                hash_bound = TTFlag::Exact;
             }
 
-            // beta cutoff shouldn't ever be used?
-            if score >= beta {
+            // Fail high cutoff
+            if alpha >= beta {
+                hash_bound = TTFlag::LowerBound;
                 if m != NULL_MOVE {
                     let mov = Move::unpack(m);
                     // the deeper we go, the more we increase the history
@@ -166,18 +174,35 @@ impl Searcher {
                         [mov.y as usize * 14 + mov.x as usize + mov.movetype as usize * 14 * 14] +=
                         increasing_depth as u32;
                 }
-                return Ok((score, best_move));
+                break;
             }
         }
+
+        // store the result in the TT
+        self.transposition_table.insert(
+            state.hash,
+            TranspositionTableEntry {
+                score: best_score,
+                depth,
+                flag: hash_bound,
+                best_move,
+            },
+        );
 
         Ok((best_score, best_move))
     }
 
-    fn order_moves(&self, moves: &mut [u32]) {
+    fn order_moves(&self, moves: &mut [u32], tt_move: u32) {
         moves.sort_by_key(|m| {
             if *m == NULL_MOVE {
                 return 0;
             }
+
+            // always put the tt move first
+            if *m == tt_move {
+                return 999999;
+            }
+
             // order by history first, then by move type
             let history_score = self.history[self.move_history_idx(Move::unpack(*m))];
 

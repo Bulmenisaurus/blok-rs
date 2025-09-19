@@ -1,9 +1,18 @@
 use std::collections::HashMap;
 
-#[derive(Clone)]
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum TTFlag {
+    Exact,
+    LowerBound,
+    UpperBound,
+}
+
+#[derive(Clone, Copy)]
 pub struct TranspositionTableEntry {
     pub score: i32,
     pub depth: usize,
+    pub flag: TTFlag,
+    pub best_move: u32,
 }
 
 #[derive(Clone)]
