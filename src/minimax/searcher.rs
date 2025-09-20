@@ -130,10 +130,10 @@ impl Searcher {
         // RFP: aggresively prunes moves that we predict will not be better than beta
         let static_eval = self.static_eval(state);
 
-        let rfp_margin = 100 * depth as i32;
+        let rfp_eval = static_eval - 100 * depth as i32;
         let rfp_depth = 3;
-        if depth <= rfp_depth && static_eval - rfp_margin > beta {
-            return Ok((beta, INVALID_MOVE));
+        if depth <= rfp_depth && rfp_eval > beta {
+            return Ok((rfp_eval, INVALID_MOVE));
         }
 
         let mut alpha = alpha;
