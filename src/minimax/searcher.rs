@@ -235,13 +235,25 @@ impl Searcher {
                     .alpha_beta(&new_state, -beta, -alpha, depth - 1, max_depth, deadline)?
                     .0;
             } else {
+                // Super simple LMR, search later moves at shallower depth
+                let mut lmr = 0;
+                if depth >= 3 && moves_played >= 16 {
+                    lmr = 2;
+                }
+
+                //TODO: test LMP
+                // if moves_played >= 100 {
+                //     // LMP - just skip?
+                //     continue;
+                // }
+
                 // null search window
                 let null_window_score = -self
                     .alpha_beta(
                         &new_state,
                         -alpha - 1,
                         -alpha,
-                        depth - 1,
+                        depth - 1 - lmr,
                         max_depth,
                         deadline,
                     )?
@@ -260,6 +272,9 @@ impl Searcher {
                 best_move = m;
             }
             if score > alpha {
+                // if root_node {
+                //     println!("Raised alpha {} -> {}", alpha, score);
+                // }
                 alpha = score;
                 hash_bound = TTFlag::Exact;
             }

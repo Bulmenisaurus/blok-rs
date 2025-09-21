@@ -27,7 +27,7 @@ pub fn main() {
     //     board.do_move(minimax::search(&board, 2_000));
     // }
 
-    let best_move = minimax::search(&board, 1_000);
+    let best_move = minimax::search(&board, 1_000_000);
 
     // println!("Best move: {}", best_move);
 }
