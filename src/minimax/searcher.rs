@@ -219,6 +219,8 @@ impl Searcher {
 
         for m in legal_moves {
             // Late move pruning - skip moves that are too late in move ordering
+            // https://www.chessprogramming.org/Futility_Pruning#Move_Count_Based_Pruning
+            // Much more aggresive version of LMR
             let lmp_moves_threshold = 10 + 5 * depth * depth;
             if !root_node && moves_played >= lmp_moves_threshold {
                 break;
