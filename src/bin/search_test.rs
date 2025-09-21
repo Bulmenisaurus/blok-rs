@@ -3,13 +3,16 @@ use blok_rs::board::GameResult;
 use blok_rs::board::StartPosition;
 use blok_rs::minimax;
 use blok_rs::movegen::generate_moves;
+use rand::SeedableRng;
+use rand::prelude::*;
 use rand::rng;
 use rand::seq::IndexedRandom;
 
 pub fn main() {
     let mut board = BoardState::new(StartPosition::Corner);
 
-    let mut rng = rng();
+    const SEED: [u8; 32] = [0; 32];
+    let mut rng = SmallRng::from_seed(SEED);
     let mut opening_moves: Vec<u32> = vec![];
     for _ in 0..10 {
         let moves = generate_moves(&board);

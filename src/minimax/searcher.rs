@@ -218,6 +218,12 @@ impl Searcher {
         let mut moves_played = 0;
 
         for m in legal_moves {
+            // Late move pruning - skip moves that are too late in move ordering
+            let lmp_moves_threshold = 10 + 5 * depth * depth;
+            if !root_node && moves_played >= lmp_moves_threshold {
+                break;
+            }
+
             let mut new_state = state.clone();
             new_state.do_move(m);
 
@@ -240,12 +246,6 @@ impl Searcher {
                 if depth >= 3 && moves_played >= 16 {
                     lmr = 2;
                 }
-
-                //TODO: test LMP
-                // if moves_played >= 100 {
-                //     // LMP - just skip?
-                //     continue;
-                // }
 
                 // null search window
                 let null_window_score = -self
