@@ -80,12 +80,7 @@ pub struct BoardState {
     pub player_a_corner_moves: HashMap<Coord, Vec<u32>>,
     pub player_b_corner_moves: HashMap<Coord, Vec<u32>>,
 
-    // From which direction does the corner piece come from?
     pub corner_direction: [u8; 196],
-
-    pub player_a_bit_moves: [u128; 196],
-    pub player_b_bit_moves: [u128; 196],
-
     pub history: Vec<u32>,
 
     pub hash: u64,
@@ -104,8 +99,6 @@ impl BoardState {
             player_a_corner_moves: HashMap::new(),
             player_b_corner_moves: HashMap::new(),
             corner_direction: [0; 196],
-            player_a_bit_moves: [0; 196],
-            player_b_bit_moves: [0; 196],
             history: Vec::new(),
             hash: 0,
         }
