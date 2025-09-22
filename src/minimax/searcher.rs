@@ -16,7 +16,7 @@ const MAX_DEPTH: usize = 100;
 
 pub struct Searcher {
     transposition_table: TranspositionTable,
-    history: [u32; 14 * 14 * 21],
+    history: [u32; 2 * 14 * 14 * 21],
     nodes: u32,
     max_nodes: u32,
 }
@@ -25,7 +25,7 @@ impl Searcher {
     pub fn new() -> Self {
         Self {
             transposition_table: TranspositionTable::new(),
-            history: [0; 14 * 14 * 21],
+            history: [0; 2 * 14 * 14 * 21],
             nodes: 0,
             max_nodes: u32::MAX,
         }
@@ -58,7 +58,6 @@ impl Searcher {
                 "depth {} bestmove {} score {} nodes {}",
                 current_depth, search_move, search_score, self.nodes,
             );
-
             assert_ne!(best_move, INVALID_MOVE, "Best move is invalid");
 
             best_move = search_move;
@@ -377,6 +376,9 @@ impl Searcher {
     }
 
     fn move_history_idx(&self, mov: Move) -> usize {
-        mov.movetype as usize * 14 * 14 + mov.y as usize * 14 + mov.x as usize
+        mov.player as usize * 14 * 14 * 21
+            + mov.movetype as usize * 14 * 14
+            + mov.y as usize * 14
+            + mov.x as usize
     }
 }
