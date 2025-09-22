@@ -14,9 +14,7 @@ const ENGINE2_PATH: &str = "./executables/ab-latest";
 const OPENING_PLIES: usize = 6;
 const PARALLEL_GAMES: usize = 8;
 
-/// SPRT stuff
-const ELO_0: f64 = -10.0;
-const ELO_1: f64 = 0.0;
+/// SPRT stuff - these will be set based on command line arguments
 
 const ALPHA: f64 = 0.05;
 const BETA: f64 = 0.05;
@@ -61,40 +59,44 @@ struct SPRT {
     total_wins: usize,
     total_losses: usize,
     total_draws: usize,
+    elo_0: f64,
+    elo_1: f64,
 }
 
 impl SPRT {
-    pub fn new() -> Self {
+    pub fn new(elo_0: f64, elo_1: f64) -> Self {
         Self {
             llr: 0.0,
             total_wins: 0,
             total_losses: 0,
             total_draws: 0,
+            elo_0,
+            elo_1,
         }
     }
 
-    fn get_p1_win() -> f64 {
-        (1.0 - DRAW_RATE) * elo_to_prob(ELO_1)
+    fn get_p1_win(&self) -> f64 {
+        (1.0 - DRAW_RATE) * elo_to_prob(self.elo_1)
     }
 
     fn get_p1_draw() -> f64 {
         DRAW_RATE
     }
 
-    fn get_p1_lose() -> f64 {
-        (1.0 - DRAW_RATE) * (1.0 - elo_to_prob(ELO_1))
+    fn get_p1_lose(&self) -> f64 {
+        (1.0 - DRAW_RATE) * (1.0 - elo_to_prob(self.elo_1))
     }
 
-    fn get_p0_win() -> f64 {
-        (1.0 - DRAW_RATE) * elo_to_prob(ELO_0)
+    fn get_p0_win(&self) -> f64 {
+        (1.0 - DRAW_RATE) * elo_to_prob(self.elo_0)
     }
 
     fn get_p0_draw() -> f64 {
         DRAW_RATE
     }
 
-    fn get_p0_lose() -> f64 {
-        (1.0 - DRAW_RATE) * (1.0 - elo_to_prob(ELO_0))
+    fn get_p0_lose(&self) -> f64 {
+        (1.0 - DRAW_RATE) * (1.0 - elo_to_prob(self.elo_0))
     }
 
     // The lower bound of the SPRT, indicates that the null hypothesis is true
@@ -113,9 +115,9 @@ impl SPRT {
         self.total_draws += if result == Outcome::Draw { 1 } else { 0 };
 
         match result {
-            Outcome::Win => self.llr += f64::ln(Self::get_p1_win() / Self::get_p0_win()),
+            Outcome::Win => self.llr += f64::ln(self.get_p1_win() / self.get_p0_win()),
             Outcome::Draw => self.llr += f64::ln(Self::get_p1_draw() / Self::get_p0_draw()),
-            Outcome::Lose => self.llr += f64::ln(Self::get_p1_lose() / Self::get_p0_lose()),
+            Outcome::Lose => self.llr += f64::ln(self.get_p1_lose() / self.get_p0_lose()),
         }
     }
 
@@ -131,12 +133,28 @@ impl SPRT {
     }
 }
 fn main() {
+    let args: Vec<String> = std::env::args().collect();
+
+    if args.len() != 2 {
+        eprintln!("Usage: {} <gain|nonregr>", args[0]);
+        std::process::exit(1);
+    }
+
+    let (elo_0, elo_1) = match args[1].as_str() {
+        "gain" => (0.0, 10.0),
+        "nonregr" => (-10.0, 0.0),
+        _ => {
+            eprintln!("Invalid mode: {}. Use 'gain' or 'nonregr'", args[1]);
+            std::process::exit(1);
+        }
+    };
+
     println!(
         "Starting comparison between {} and {}",
         ENGINE1_PATH, ENGINE2_PATH
     );
-    println!("SPRT elo bounds: {} - {}", ELO_0, ELO_1);
-    let sprt = Arc::new(Mutex::new(SPRT::new()));
+    println!("SPRT elo bounds: {} - {}", elo_0, elo_1);
+    let sprt = Arc::new(Mutex::new(SPRT::new(elo_0, elo_1)));
 
     while {
         let sprt_guard = sprt.lock().unwrap();
