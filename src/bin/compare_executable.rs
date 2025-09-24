@@ -14,8 +14,6 @@ const ENGINE2_PATH: &str = "./executables/ab-latest";
 const OPENING_PLIES: usize = 6;
 const PARALLEL_GAMES: usize = 4;
 
-/// SPRT stuff - these will be set based on command line arguments
-
 const ALPHA: f64 = 0.05;
 const BETA: f64 = 0.05;
 
@@ -142,7 +140,7 @@ fn main() {
 
     let (elo_0, elo_1) = match args[1].as_str() {
         "gain" => (0.0, 5.0),
-        "nonregr" => (-5.0, 0.0),
+        "nonregr" => (-10.0, 0.0),
         _ => {
             eprintln!("Invalid mode: {}. Use 'gain' or 'nonregr'", args[1]);
             std::process::exit(1);

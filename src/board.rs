@@ -110,6 +110,46 @@ impl BoardState {
         }
     }
 
+    pub fn my_remaining(&self) -> u32 {
+        if self.player == Player::White {
+            self.player_a_remaining
+        } else {
+            self.player_b_remaining
+        }
+    }
+
+    pub fn my_bitboard(&self) -> &[u16; 16] {
+        if self.player == Player::White {
+            &self.player_a_bit_board
+        } else {
+            &self.player_b_bit_board
+        }
+    }
+
+    pub fn their_bitboard(&self) -> &[u16; 16] {
+        if self.player == Player::White {
+            &self.player_b_bit_board
+        } else {
+            &self.player_a_bit_board
+        }
+    }
+
+    pub fn my_corner_moves_info(&self) -> &HashMap<Coord, CornerMovesInfo> {
+        if self.player == Player::White {
+            &self.player_a_corner_moves_info
+        } else {
+            &self.player_b_corner_moves_info
+        }
+    }
+
+    pub fn their_corner_moves_info(&self) -> &HashMap<Coord, CornerMovesInfo> {
+        if self.player == Player::White {
+            &self.player_b_corner_moves_info
+        } else {
+            &self.player_a_corner_moves_info
+        }
+    }
+
     pub fn is_game_over(&self) -> bool {
         self.null_move_counter >= 2
     }

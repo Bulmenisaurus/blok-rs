@@ -207,7 +207,7 @@ impl Searcher {
         let mut alpha = alpha;
 
         let mut legal_moves = generate_moves(state);
-        let amount = legal_moves.len();
+        // let amount = legal_moves.len();
         self.order_moves(&mut legal_moves, tt_move);
 
         let mut best_score = -SCORE_INFINITY;

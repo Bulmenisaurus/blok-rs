@@ -4,7 +4,6 @@ use blok_rs::board::Score;
 use blok_rs::board::StartPosition;
 use blok_rs::movegen;
 
-use serde_json;
 
 #[test]
 pub fn root_node_has_all_moves() {

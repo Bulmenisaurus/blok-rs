@@ -5,7 +5,6 @@ use blok_rs::minimax;
 use blok_rs::movegen::generate_moves;
 use rand::SeedableRng;
 use rand::prelude::*;
-use rand::rng;
 use rand::seq::IndexedRandom;
 
 pub fn main() {
