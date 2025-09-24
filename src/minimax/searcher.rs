@@ -364,15 +364,25 @@ impl Searcher {
 
     fn white_eval(&self, state: &BoardState) -> i32 {
         let score = state.score().player_a as i32;
-        let move_count = state.player_a_corner_moves.values().flatten().count() as i32;
-        score * 100 + move_count
+
+        let move_count_2 = state
+            .player_a_corner_moves_info
+            .values()
+            .map(|info| info.moves.count_ones() as i32)
+            .sum::<i32>();
+
+        score * 100 + move_count_2
     }
 
     fn black_eval(&self, state: &BoardState) -> i32 {
         let score = state.score().player_b as i32;
-        let move_count = state.player_b_corner_moves.values().flatten().count() as i32;
+        let move_count_2 = state
+            .player_b_corner_moves_info
+            .values()
+            .map(|info| info.moves.count_ones() as i32)
+            .sum::<i32>();
 
-        score * 100 + move_count
+        score * 100 + move_count_2
     }
 
     fn move_history_idx(&self, mov: Move) -> usize {

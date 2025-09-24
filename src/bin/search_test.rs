@@ -22,15 +22,15 @@ pub fn main() {
     }
 
     println!("Opening moves: {:?}", opening_moves);
-    // while board.game_result() == GameResult::InProgress {
-    //     // Option 1: search nodes (for perf)
-    //     // board.do_move(minimax::search_nodes(&board, 5_000));
+    while board.game_result() == GameResult::InProgress {
+        // Option 1: search nodes (for perf)
+        // board.do_move(minimax::search_nodes(&board, 5_000));
 
-    //     // Option 2: search (for benchmarking)
-    //     board.do_move(minimax::search(&board, 2_000));
-    // }
+        // Option 2: search (for benchmarking)
+        board.do_move(minimax::search(&board, 2_000));
+    }
 
-    let best_move = minimax::search(&board, 1_000_000);
+    // let best_move = minimax::search(&board, 1_000_000);
 
     // println!("Best move: {}", best_move);
 }

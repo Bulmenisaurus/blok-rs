@@ -58,6 +58,12 @@ pub enum GameResult {
     Draw,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct CornerMovesInfo {
+    pub direction: u8,
+    pub moves: u128,
+}
+
 #[derive(Debug, Clone)]
 pub struct BoardState {
     /// Player to move
@@ -77,8 +83,8 @@ pub struct BoardState {
     pub null_move_counter: u8,
 
     /// Cached corner moves
-    pub player_a_corner_moves: HashMap<Coord, Vec<u32>>,
-    pub player_b_corner_moves: HashMap<Coord, Vec<u32>>,
+    pub player_a_corner_moves_info: HashMap<Coord, CornerMovesInfo>,
+    pub player_b_corner_moves_info: HashMap<Coord, CornerMovesInfo>,
 
     pub corner_direction: [u8; 196],
     pub history: Vec<u32>,
@@ -96,8 +102,8 @@ impl BoardState {
             player_b_bit_board: [0; 16],
             null_move_counter: 0,
             start_position,
-            player_a_corner_moves: HashMap::new(),
-            player_b_corner_moves: HashMap::new(),
+            player_a_corner_moves_info: HashMap::new(),
+            player_b_corner_moves_info: HashMap::new(),
             corner_direction: [0; 196],
             history: Vec::new(),
             hash: 0,
