@@ -16,7 +16,7 @@ const MAX_DEPTH: usize = 100;
 
 pub struct Searcher {
     transposition_table: TranspositionTable,
-    history: [u32; 2 * 14 * 14 * 21],
+    history: [u32; 2 * 8 * 14 * 14 * 21],
     nodes: u32,
     max_nodes: u32,
 }
@@ -25,7 +25,7 @@ impl Searcher {
     pub fn new() -> Self {
         Self {
             transposition_table: TranspositionTable::new(),
-            history: [0; 2 * 14 * 14 * 21],
+            history: [0; 2 * 8 * 14 * 14 * 21],
             nodes: 0,
             max_nodes: u32::MAX,
         }
@@ -386,7 +386,8 @@ impl Searcher {
     }
 
     fn move_history_idx(&self, mov: Move) -> usize {
-        mov.player as usize * 14 * 14 * 21
+        mov.player as usize * 8 * 14 * 14 * 21
+            + mov.orientation as usize * 14 * 14 * 21
             + mov.movetype as usize * 14 * 14
             + mov.y as usize * 14
             + mov.x as usize
