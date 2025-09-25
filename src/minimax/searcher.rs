@@ -180,7 +180,7 @@ impl Searcher {
                     || tt_entry.flag == TTFlag::LowerBound && tt_entry.score >= beta
                     || tt_entry.flag == TTFlag::UpperBound && tt_entry.score < alpha
                 {
-                    return Ok((tt_entry.score, INVALID_MOVE));
+                    return Ok((tt_entry.score, tt_entry.best_move));
                 }
             }
             //?
