@@ -196,7 +196,7 @@ impl Searcher {
         // RFP: aggresively prunes moves that we predict will not be better than beta
         let static_eval = self.static_eval(state);
 
-        if !pv_node {
+        if !pv_node && max_depth > 2 {
             let rfp_eval = static_eval - 100 * depth as i32;
             let rfp_depth = 3;
             if depth <= rfp_depth && rfp_eval > beta {
@@ -221,7 +221,7 @@ impl Searcher {
             // https://www.chessprogramming.org/Futility_Pruning#Move_Count_Based_Pruning
             // Much more aggresive version of LMR
             let lmp_moves_threshold = 10 + 5 * depth * depth;
-            if !root_node && moves_played >= lmp_moves_threshold {
+            if !root_node && moves_played >= lmp_moves_threshold && max_depth > 2 {
                 break;
             }
 

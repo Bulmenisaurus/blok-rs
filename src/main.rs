@@ -62,7 +62,7 @@ async fn handle_websocket(ws_stream: WebSocketStream<TcpStream>) {
                                     match game_difficulty.as_str() {
                                         "easy" => 1_000,
                                         "medium" => 5_000,
-                                        "hard" => 10_000,
+                                        "hard" => 60_000,
                                         _ => 1_000,
                                     },
                                 );
