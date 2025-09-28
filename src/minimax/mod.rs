@@ -1,5 +1,6 @@
 use crate::{board::BoardState, minimax::searcher::Searcher};
 
+mod eval;
 mod searcher;
 mod transposition_table;
 

@@ -1,16 +1,15 @@
 use std::time::{Duration, Instant};
 
 use crate::{
-    board::{BoardState, GameResult, Player},
+    board::BoardState,
     minimax::transposition_table::{TTFlag, TranspositionTable, TranspositionTableEntry},
     movegen::{INVALID_MOVE, Move, NULL_MOVE, PIECE_DATA, generate_moves},
 };
 
+use crate::minimax::eval::eval;
+
 /// Used for the bounds of alpha-beta pruning
 const SCORE_INFINITY: i32 = 1_000_000;
-
-/// End of game score, if winning +max, if losing -max
-const SCORE_MAX: i32 = 999_999;
 
 const MAX_DEPTH: usize = 100;
 
@@ -155,12 +154,10 @@ impl Searcher {
             return Err(());
         }
 
-        if state.is_game_over() {
-            return Ok((self.game_over_eval(state), INVALID_MOVE));
-        }
+        let static_eval = eval(state);
 
-        if depth == 0 {
-            return Ok((self.static_eval(state), INVALID_MOVE));
+        if state.is_game_over() || depth == 0 {
+            return Ok((static_eval, INVALID_MOVE));
         }
 
         let root_node = depth == max_depth;
@@ -194,8 +191,6 @@ impl Searcher {
         }
 
         // RFP: aggresively prunes moves that we predict will not be better than beta
-        let static_eval = self.static_eval(state);
-
         if !pv_node && max_depth > 2 {
             let rfp_eval = static_eval - 100 * depth as i32;
             let rfp_depth = 3;
@@ -336,53 +331,6 @@ impl Searcher {
 
         // Descending order
         moves.reverse();
-    }
-
-    fn game_over_eval(&self, state: &BoardState) -> i32 {
-        match state.game_result() {
-            GameResult::Win(p) => {
-                if p == state.player {
-                    SCORE_MAX
-                } else {
-                    -SCORE_MAX
-                }
-            }
-            GameResult::Draw => 0,
-            GameResult::InProgress => unreachable!(),
-        }
-    }
-
-    // from the persepective of the player to move
-    fn static_eval(&self, state: &BoardState) -> i32 {
-        let person_to_move = match state.player {
-            Player::White => 1,
-            Player::Black => -1,
-        };
-
-        person_to_move * (self.white_eval(state) - self.black_eval(state))
-    }
-
-    fn white_eval(&self, state: &BoardState) -> i32 {
-        let score = state.score().player_a as i32;
-
-        let move_count_2 = state
-            .player_a_corner_moves_info
-            .values()
-            .map(|info| info.moves.count_ones() as i32)
-            .sum::<i32>();
-
-        score * 100 + move_count_2
-    }
-
-    fn black_eval(&self, state: &BoardState) -> i32 {
-        let score = state.score().player_b as i32;
-        let move_count_2 = state
-            .player_b_corner_moves_info
-            .values()
-            .map(|info| info.moves.count_ones() as i32)
-            .sum::<i32>();
-
-        score * 100 + move_count_2
     }
 
     fn move_history_idx(&self, mov: Move) -> usize {
