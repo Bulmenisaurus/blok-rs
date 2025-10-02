@@ -458,6 +458,19 @@ pub fn update_move_cache(board: &mut BoardState, last_move: u32) {
             continue;
         }
 
+        let offset = absolute_corner.y as usize + 1;
+        let my_bitboard = board.my_bitboard()[offset]
+            | board.their_bitboard()[offset]
+            | board.my_bitboard()[offset] << 1
+            | board.my_bitboard()[offset] >> 1
+            | board.my_bitboard()[offset - 1]
+            | board.my_bitboard()[offset + 1];
+
+        let move_row = my_bitboard & (1 << absolute_corner.x);
+        if move_row != 0 {
+            continue;
+        }
+
         // now we update corner directions
         // I'm pretty sure we can just overwrite the direction for this corner, ignoring any other direction assigned here before
         // this is because the valid moves from this corner should be the intersection of the valid moves from the other corners, which is still a subset of the valid moves from this direction
