@@ -281,8 +281,7 @@ impl Searcher {
                 if m != NULL_MOVE {
                     let mov = Move::unpack(m);
                     // the deeper we go, the more we increase the history
-                    let increasing_depth = max_depth - depth;
-                    self.history[self.move_history_idx(mov)] += increasing_depth as u32;
+                    self.history[self.move_history_idx(mov)] += depth as u32;
                 }
                 break;
             }

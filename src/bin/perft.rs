@@ -41,15 +41,20 @@ fn playout(amount: usize) -> u64 {
 }
 
 fn main() {
-    let start = Instant::now();
-    let moves_amount = playout(10_000);
-    let duration = start.elapsed();
-    let secs = duration.as_secs_f64();
-    let moves_per_sec = moves_amount as f64 / secs;
-    println!(
-        "Total moves: {}\nElapsed: {:.3} seconds\nMoves/second: {:.2}",
-        moves_amount, secs, moves_per_sec
-    );
+    // let start = Instant::now();
+    // let moves_amount = playout(10_000);
+    // let duration = start.elapsed();
+    // let secs = duration.as_secs_f64();
+    // let moves_per_sec = moves_amount as f64 / secs;
+    // println!(
+    //     "Total moves: {}\nElapsed: {:.3} seconds\nMoves/second: {:.2}",
+    //     moves_amount, secs, moves_per_sec
+    // );
+    for depth in 0..=4 {
+        let board = BoardState::new(StartPosition::Corner);
+        let perft = perft(&board, depth);
+        println!("Depth {}: {}", depth, perft);
+    }
     // let board = BoardState::new(StartPosition::Corner);
     // let nodes = perft(&board, 4);
     // println!("{}", nodes);
