@@ -37,12 +37,7 @@ pub struct CoordWithDirection {
 /// This method does not check if there is a corner!
 /// It only makes sure that the move is in bounds and not intersecting with any other pieces or touching any of our pieces.
 pub fn is_move_legal(board: &BoardState, m: u32) -> bool {
-    is_move_legal_no_board(
-        board.my_remaining(),
-        board.my_bitboard(),
-        board.their_bitboard(),
-        m,
-    )
+    is_move_legal_no_board(board.my_remaining(), m)
 }
 
 pub fn is_move_legal_slow(board: &BoardState, m: u32) -> bool {
@@ -52,22 +47,6 @@ pub fn is_move_legal_slow(board: &BoardState, m: u32) -> bool {
         board.their_bitboard(),
         m,
     )
-}
-
-pub fn is_move_legal_with_bitboard(
-    board: &BoardState,
-    m: u32,
-    piece_bb: u64,
-    window_bb: u64,
-) -> bool {
-    // check if it's been played before
-
-    // (this condition is necessary for cache moves)
-    if board.my_remaining() & (1 << Move::get_movetype(m)) == 0 {
-        return false;
-    }
-
-    return piece_bb & window_bb == 0;
 }
 
 fn get_corner_window_from_bitboard(
@@ -121,22 +100,14 @@ fn get_corner_window(board: &BoardState, corner: Coord, direction: u8) -> u64 {
 
 /// Used to avoid a clone of the board when updating the move cache.
 /// Since we need a mutable reference to the board, we can't use it immutably in `is_move_legal`
-pub fn is_move_legal_no_board(
-    my_remaining: u32,
-    my_bitboard: &[u32; 24],
-    their_bitboard: &[u32; 24],
-
-    m: u32,
-) -> bool {
+pub fn is_move_legal_no_board(my_remaining: u32, m: u32) -> bool {
     // Null moves are assumed to be legal if generated
     // However, null move cannot always be played, the burden is on the caller to check if it is legal
     if m == NULL_MOVE {
         return true;
     }
 
-    let location = Move::get_location(m);
     let movetype = Move::get_movetype(m);
-    let orientation = Move::get_orientation(m);
 
     // check if this move has already been placed
     if my_remaining & (1u32 << movetype) == 0 {
@@ -401,8 +372,7 @@ pub fn update_cache_corner_move(
         movetype: mov.movetype,
     };
 
-    if !check_legal || is_move_legal_no_board(my_remaining, my_bitboard, their_bitboard, mov.pack())
-    {
+    if !check_legal || is_move_legal_no_board(my_remaining, mov.pack()) {
         return Some(mov.pack());
     }
 
