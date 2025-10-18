@@ -45,6 +45,15 @@ pub fn is_move_legal(board: &BoardState, m: u32) -> bool {
     )
 }
 
+pub fn is_move_legal_slow(board: &BoardState, m: u32) -> bool {
+    is_move_legal_no_board_slow(
+        board.my_remaining(),
+        board.my_bitboard(),
+        board.their_bitboard(),
+        m,
+    )
+}
+
 pub fn is_move_legal_with_bitboard(
     board: &BoardState,
     m: u32,
@@ -61,7 +70,12 @@ pub fn is_move_legal_with_bitboard(
     return piece_bb & window_bb == 0;
 }
 
-fn get_corner_window(board: &BoardState, corner: Coord, direction: u8) -> u64 {
+fn get_corner_window_from_bitboard(
+    my_bitboard: &[u32; 24],
+    their_bitboard: &[u32; 24],
+    corner: Coord,
+    direction: u8,
+) -> u64 {
     // how this corner attacher is offset from the corner itself
     let move_center_offset: (i32, i32) = match direction {
         0 => (0, 0),
@@ -75,12 +89,6 @@ fn get_corner_window(board: &BoardState, corner: Coord, direction: u8) -> u64 {
         x: corner.x + move_center_offset.0,
         y: corner.y + move_center_offset.1,
     };
-
-    let my_bitboard = board.my_bitboard();
-    let their_bitboard = board.their_bitboard();
-
-    // println!("My bitboard: {:?}", my_bitboard);
-    // println!("Their bitboard: {:?}", their_bitboard);
 
     let mut bitboard: u64 = 0;
     for y in 0..8 {
@@ -102,9 +110,42 @@ fn get_corner_window(board: &BoardState, corner: Coord, direction: u8) -> u64 {
     bitboard
 }
 
+fn get_corner_window(board: &BoardState, corner: Coord, direction: u8) -> u64 {
+    get_corner_window_from_bitboard(
+        board.my_bitboard(),
+        board.their_bitboard(),
+        corner,
+        direction,
+    )
+}
+
 /// Used to avoid a clone of the board when updating the move cache.
 /// Since we need a mutable reference to the board, we can't use it immutably in `is_move_legal`
 pub fn is_move_legal_no_board(
+    my_remaining: u32,
+    my_bitboard: &[u32; 24],
+    their_bitboard: &[u32; 24],
+
+    m: u32,
+) -> bool {
+    // Null moves are assumed to be legal if generated
+    // However, null move cannot always be played, the burden is on the caller to check if it is legal
+    if m == NULL_MOVE {
+        return true;
+    }
+
+    let location = Move::get_location(m);
+    let movetype = Move::get_movetype(m);
+    let orientation = Move::get_orientation(m);
+
+    // check if this move has already been placed
+    if my_remaining & (1u32 << movetype) == 0 {
+        return false;
+    }
+
+    true
+}
+pub fn is_move_legal_no_board_slow(
     my_remaining: u32,
     my_bitboard: &[u32; 24],
     their_bitboard: &[u32; 24],
@@ -228,7 +269,7 @@ pub fn generate_first_moves(board: &BoardState) -> Vec<u32> {
     // Filter moves by legality
     moves
         .into_iter()
-        .filter(|m| is_move_legal(board, *m))
+        .filter(|m| is_move_legal_slow(board, *m))
         .collect()
 }
 
@@ -324,6 +365,10 @@ pub fn update_cache_corner_move(
     check_bounds: bool,
 ) -> Option<u32> {
     let mov = Move::unpack(cache_move);
+
+    if my_remaining & (1u32 << mov.movetype) == 0 {
+        return None;
+    }
 
     // how this corner attacher is offset from the corner itself
     let move_center_offset: (i32, i32) = match direction {
@@ -444,6 +489,7 @@ pub fn update_corner_moves_info(
     player: Player,
     info: &mut CornerMovesInfo,
     coord: &Coord,
+    window: u64,
     my_remaining: u32,
     my_bitboard: &[u32; 24],
     their_bitboard: &[u32; 24],
@@ -455,6 +501,11 @@ pub fn update_corner_moves_info(
         let index = bitboard_copy.trailing_zeros();
 
         bitboard_copy &= !(1 << index);
+
+        let piece_bb = CORNER_MOVES_DATA_U64[info.direction as usize][index as usize];
+        if piece_bb & window != 0 {
+            continue;
+        }
 
         // now we check if this move is still legal
         let cache_move = CORNER_MOVES_DATA[info.direction as usize][index as usize];
@@ -575,12 +626,22 @@ pub fn update_move_cache(board: &mut BoardState, last_move: u32) {
 
     board.skip_turn();
 
+    let my_bitboard = board.my_bitboard().clone();
+    let their_bitboard = board.their_bitboard().clone();
     if board.player == Player::White {
+        let player_a_corner_moves_info = &mut board.player_a_corner_moves_info;
         for (coord, info) in board.player_a_corner_moves_info.iter_mut() {
+            let window = get_corner_window_from_bitboard(
+                &my_bitboard,
+                &their_bitboard,
+                *coord,
+                info.direction,
+            );
             update_corner_moves_info(
                 Player::White,
                 info,
                 coord,
+                window,
                 board.player_a_remaining,
                 &board.player_a_bit_board,
                 &board.player_b_bit_board,
@@ -588,10 +649,17 @@ pub fn update_move_cache(board: &mut BoardState, last_move: u32) {
         }
     } else {
         for (coord, info) in board.player_b_corner_moves_info.iter_mut() {
+            let window = get_corner_window_from_bitboard(
+                &my_bitboard,
+                &their_bitboard,
+                *coord,
+                info.direction,
+            );
             update_corner_moves_info(
                 Player::Black,
                 info,
                 coord,
+                window,
                 board.player_b_remaining,
                 &board.player_b_bit_board,
                 &board.player_a_bit_board,
@@ -621,10 +689,13 @@ pub fn update_move_cache_from_null_move(board: &mut BoardState) {
     };
 
     for (coord, info) in my_corner_moves_info.iter_mut() {
+        let window =
+            get_corner_window_from_bitboard(&my_bitboard, &their_bitboard, *coord, info.direction);
         update_corner_moves_info(
             board.player,
             info,
             coord,
+            window,
             my_remaining,
             my_bitboard,
             their_bitboard,
