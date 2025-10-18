@@ -376,7 +376,14 @@ pub fn get_legal_moves_from(from: &Coord, board: &BoardState) -> CornerMovesInfo
     let my_bitboard = board.my_bitboard();
     let their_bitboard = board.their_bitboard();
 
+    let window = get_corner_window(board, *from, corner_direction as u8);
+
     for (i, m) in cached_moves.into_iter().enumerate() {
+        let piece_bb = CORNER_MOVES_DATA_U64[corner_direction as usize][i as usize];
+        if piece_bb & window != 0 {
+            continue;
+        }
+
         let updated = update_cache_corner_move(
             m,
             corner_direction,
@@ -385,7 +392,7 @@ pub fn get_legal_moves_from(from: &Coord, board: &BoardState) -> CornerMovesInfo
             my_remaining,
             my_bitboard,
             their_bitboard,
-            true,
+            false,
             true,
         );
         if updated.is_some() {
