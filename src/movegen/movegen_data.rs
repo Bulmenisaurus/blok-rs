@@ -1,6 +1,9 @@
 use once_cell::sync::Lazy;
 
-use crate::{board::Coord, movegen::movegen::CoordWithDirection};
+use crate::{
+    board::Coord,
+    movegen::{Move, movegen::CoordWithDirection},
+};
 
 pub static PIECE_DATA: Lazy<Vec<Vec<Coord>>> = Lazy::new(|| {
     let json_str = include_str!("pieces.json");
@@ -88,3 +91,52 @@ pub static CORNER_MOVES_DATA: [[u32; 127]; 4] = [
         41281, 41792,
     ],
 ];
+
+pub static CORNER_MOVES_DATA_U64: Lazy<[[u64; 127]; 4]> = Lazy::new(|| {
+    let mut corner_moves_data_u64: [[u64; 127]; 4] = [[0; 127]; 4];
+    for direction in 0..4 {
+        let mut data: [u64; 127] = [0; 127];
+        for i in 0..127 {
+            let move_unpacked = Move::unpack(CORNER_MOVES_DATA[direction][i]);
+            // now we need move it over to the correct location
+            let original_center: (i32, i32) = match direction {
+                0 => (6, 6),
+                1 => (8, 6),
+                2 => (8, 8),
+                3 => (6, 8),
+                _ => unreachable!(),
+            };
+
+            let new_center: (i32, i32) = match direction {
+                0 => (4, 4),
+                1 => (3, 4),
+                2 => (3, 3),
+                3 => (4, 3),
+                _ => unreachable!(),
+            };
+
+            let new_coord: Coord = Coord {
+                x: move_unpacked.x + new_center.0 - original_center.0,
+                y: move_unpacked.y + new_center.1 - original_center.1,
+            };
+
+            let mut bitboard: u64 = 0;
+
+            let piece_data = &ORIENTATION_DATA[move_unpacked.movetype as usize]
+                [move_unpacked.orientation as usize];
+            for coord in piece_data {
+                let absolute_coord = Coord {
+                    x: coord.x + new_coord.x,
+                    y: coord.y + new_coord.y,
+                };
+
+                bitboard |= 1 << (absolute_coord.y as usize * 8 + absolute_coord.x as usize);
+            }
+
+            data[i] = bitboard;
+        }
+        corner_moves_data_u64[direction] = data;
+    }
+
+    corner_moves_data_u64
+});

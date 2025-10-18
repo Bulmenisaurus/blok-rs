@@ -4,8 +4,8 @@ use crate::board::{
 
 use crate::movegen::blok_move::{Move, NULL_MOVE};
 use crate::movegen::movegen_data::{
-    CORNER_ATTACHERS_DIR_DATA, CORNER_MOVES_DATA, CORNERS_DATA, ORIENTATION_DATA,
-    ORIENTATIONS_BITBOARD_DATA, SHORT_BOUNDING_BOX_DATA,
+    CORNER_ATTACHERS_DIR_DATA, CORNER_MOVES_DATA, CORNER_MOVES_DATA_U64, CORNERS_DATA,
+    ORIENTATION_DATA, ORIENTATIONS_BITBOARD_DATA, SHORT_BOUNDING_BOX_DATA,
 };
 use crate::movegen::zobrist::{NULL_MOVE_COUNT_ZOBRIST, PLAYER_A_ZOBRIST, PLAYER_B_ZOBRIST};
 
@@ -45,6 +45,63 @@ pub fn is_move_legal(board: &BoardState, m: u32) -> bool {
     )
 }
 
+pub fn is_move_legal_with_bitboard(
+    board: &BoardState,
+    m: u32,
+    piece_bb: u64,
+    window_bb: u64,
+) -> bool {
+    // check if it's been played before
+
+    // (this condition is necessary for cache moves)
+    if board.my_remaining() & (1 << Move::get_movetype(m)) == 0 {
+        return false;
+    }
+
+    return piece_bb & window_bb == 0;
+}
+
+fn get_corner_window(board: &BoardState, corner: Coord, direction: u8) -> u64 {
+    // how this corner attacher is offset from the corner itself
+    let move_center_offset: (i32, i32) = match direction {
+        0 => (0, 0),
+        1 => (1, 0),
+        2 => (1, 1),
+        3 => (0, 1),
+        _ => unreachable!(),
+    };
+
+    let window_top_left_coord = Coord {
+        x: corner.x + move_center_offset.0,
+        y: corner.y + move_center_offset.1,
+    };
+
+    let my_bitboard = board.my_bitboard();
+    let their_bitboard = board.their_bitboard();
+
+    // println!("My bitboard: {:?}", my_bitboard);
+    // println!("Their bitboard: {:?}", their_bitboard);
+
+    let mut bitboard: u64 = 0;
+    for y in 0..8 {
+        let idx = y + window_top_left_coord.y as usize + 1;
+        let my_row = my_bitboard[idx];
+        let my_row_above = my_bitboard[idx - 1];
+        let my_row_below = my_bitboard[idx + 1];
+
+        let their_row = their_bitboard[idx];
+
+        let my_row_adjacency =
+            my_row | my_row << 1 | my_row >> 1 | my_row_above | my_row_below | their_row;
+        let my_row_adjacency = my_row_adjacency >> window_top_left_coord.x as usize;
+
+        // println!("row {}: {:?}", y, my_row_adjacency);
+        bitboard |= ((my_row_adjacency as u64) & 255) << (y * 8);
+    }
+
+    bitboard
+}
+
 /// Used to avoid a clone of the board when updating the move cache.
 /// Since we need a mutable reference to the board, we can't use it immutably in `is_move_legal`
 pub fn is_move_legal_no_board(
@@ -81,6 +138,8 @@ pub fn is_move_legal_no_board(
             | my_bitboard[idx] >> 1
             | my_bitboard[idx - 1]
             | my_bitboard[idx + 1];
+
+        let game_row = game_row >> 4;
 
         if bitboard_row & game_row != 0 {
             return false;
@@ -187,6 +246,8 @@ pub fn get_corner_moves_from_bitboard(
     let my_bitboard = board.my_bitboard();
     let their_bitboard = board.their_bitboard();
 
+    let window = get_corner_window(board, *coord, info.direction);
+
     while bitboard_copy != 0 {
         let index = bitboard_copy.trailing_zeros();
 
@@ -194,6 +255,12 @@ pub fn get_corner_moves_from_bitboard(
 
         // now we check if this move is still legal
         let cache_move = CORNER_MOVES_DATA[info.direction as usize][index as usize];
+        let piece_bb = CORNER_MOVES_DATA_U64[info.direction as usize][index as usize];
+
+        if piece_bb & window != 0 {
+            continue;
+        }
+
         let updated = update_cache_corner_move(
             cache_move,
             direction_enum,
@@ -227,6 +294,11 @@ pub fn generate_moves(board: &BoardState) -> Vec<u32> {
     let mut unique_moves_info: Vec<u32> = Vec::new();
     for (coord, info) in board.my_corner_moves_info().iter() {
         let moves = get_corner_moves_from_bitboard(board, *info, coord);
+        // println!(
+        //     "Generating moves for corner: {:?}, moves: {:?}",
+        //     coord,
+        //     moves.len()
+        // );
         unique_moves_info.extend(moves);
     }
     unique_moves_info.sort_unstable();
@@ -421,7 +493,7 @@ pub fn update_move_cache(board: &mut BoardState, last_move: u32) {
         &ORIENTATIONS_BITBOARD_DATA[mov.movetype as usize][mov.orientation as usize];
 
     for bb_y in 0..piece_bitboard.len() {
-        my_bitboard[mov.y as usize + bb_y + 5] |= (piece_bitboard[bb_y] as u32) << mov.x;
+        my_bitboard[mov.y as usize + bb_y + 5] |= (piece_bitboard[bb_y] as u32) << (mov.x + 4);
     }
 
     // Update the corner data.
@@ -466,7 +538,7 @@ pub fn update_move_cache(board: &mut BoardState, last_move: u32) {
             | board.my_bitboard()[offset - 1]
             | board.my_bitboard()[offset + 1];
 
-        let move_row = my_bitboard & (1 << absolute_corner.x);
+        let move_row = my_bitboard & (1 << (absolute_corner.x + 4));
         if move_row != 0 {
             continue;
         }
