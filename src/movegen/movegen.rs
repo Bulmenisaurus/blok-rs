@@ -255,8 +255,6 @@ pub fn get_corner_moves_from_bitboard(
     let direction_enum = corner_direction_to_enum(info.direction);
 
     let my_remaining = board.my_remaining();
-    let my_bitboard = board.my_bitboard();
-    let their_bitboard = board.their_bitboard();
 
     let window = get_corner_window(board, *coord, info.direction);
 
@@ -279,9 +277,6 @@ pub fn get_corner_moves_from_bitboard(
             coord,
             board.player,
             my_remaining,
-            my_bitboard,
-            their_bitboard,
-            false,
             false,
         );
 
@@ -306,11 +301,6 @@ pub fn generate_moves(board: &BoardState) -> Vec<u32> {
     let mut unique_moves_info: Vec<u32> = Vec::new();
     for (coord, info) in board.my_corner_moves_info().iter() {
         let moves = get_corner_moves_from_bitboard(board, *info, coord);
-        // println!(
-        //     "Generating moves for corner: {:?}, moves: {:?}",
-        //     coord,
-        //     moves.len()
-        // );
         unique_moves_info.extend(moves);
     }
     unique_moves_info.sort_unstable();
@@ -330,9 +320,6 @@ pub fn update_cache_corner_move(
     position: &Coord,
     player: Player,
     my_remaining: u32,
-    my_bitboard: &[u32; 24],
-    their_bitboard: &[u32; 24],
-    check_legal: bool,
     check_bounds: bool,
 ) -> Option<u32> {
     let mov = Move::unpack(cache_move);
@@ -356,6 +343,10 @@ pub fn update_cache_corner_move(
         y: mov.y + position.y - move_absolute_offset.1,
     };
 
+    if !mov_coord.in_bounds() {
+        return None;
+    }
+
     // check if it is outside of the board
     if check_bounds {
         let (bx, by) = SHORT_BOUNDING_BOX_DATA[mov.movetype as usize][mov.orientation as usize];
@@ -372,11 +363,7 @@ pub fn update_cache_corner_move(
         movetype: mov.movetype,
     };
 
-    if !check_legal || is_move_legal_no_board(my_remaining, mov.pack()) {
-        return Some(mov.pack());
-    }
-
-    None
+    Some(mov.pack())
 }
 /// Used to generate moves from a corner when a new piece is placed
 // TODO: hardcode some options for moves that are guaranteed to not intersect the piece we are placing
@@ -388,8 +375,6 @@ pub fn get_legal_moves_from(from: &Coord, board: &BoardState) -> CornerMovesInfo
 
     let mut bitboard: u128 = 0;
     let my_remaining = board.my_remaining();
-    let my_bitboard = board.my_bitboard();
-    let their_bitboard = board.their_bitboard();
 
     let window = get_corner_window(board, *from, corner_direction as u8);
 
@@ -399,17 +384,8 @@ pub fn get_legal_moves_from(from: &Coord, board: &BoardState) -> CornerMovesInfo
             continue;
         }
 
-        let updated = update_cache_corner_move(
-            m,
-            corner_direction,
-            from,
-            board.player,
-            my_remaining,
-            my_bitboard,
-            their_bitboard,
-            false,
-            true,
-        );
+        let updated =
+            update_cache_corner_move(m, corner_direction, from, board.player, my_remaining, true);
         if updated.is_some() {
             bitboard |= 1 << i;
         }
@@ -461,8 +437,6 @@ pub fn update_corner_moves_info(
     coord: &Coord,
     window: u64,
     my_remaining: u32,
-    my_bitboard: &[u32; 24],
-    their_bitboard: &[u32; 24],
 ) {
     let mut bitboard_copy = info.moves;
     let direction_enum = corner_direction_to_enum(info.direction);
@@ -485,9 +459,6 @@ pub fn update_corner_moves_info(
             coord,
             player,
             my_remaining,
-            my_bitboard,
-            their_bitboard,
-            true,
             false,
         );
 
@@ -599,7 +570,6 @@ pub fn update_move_cache(board: &mut BoardState, last_move: u32) {
     let my_bitboard = board.my_bitboard().clone();
     let their_bitboard = board.their_bitboard().clone();
     if board.player == Player::White {
-        let player_a_corner_moves_info = &mut board.player_a_corner_moves_info;
         for (coord, info) in board.player_a_corner_moves_info.iter_mut() {
             let window = get_corner_window_from_bitboard(
                 &my_bitboard,
@@ -607,15 +577,7 @@ pub fn update_move_cache(board: &mut BoardState, last_move: u32) {
                 *coord,
                 info.direction,
             );
-            update_corner_moves_info(
-                Player::White,
-                info,
-                coord,
-                window,
-                board.player_a_remaining,
-                &board.player_a_bit_board,
-                &board.player_b_bit_board,
-            );
+            update_corner_moves_info(Player::White, info, coord, window, board.player_a_remaining);
         }
     } else {
         for (coord, info) in board.player_b_corner_moves_info.iter_mut() {
@@ -625,15 +587,7 @@ pub fn update_move_cache(board: &mut BoardState, last_move: u32) {
                 *coord,
                 info.direction,
             );
-            update_corner_moves_info(
-                Player::Black,
-                info,
-                coord,
-                window,
-                board.player_b_remaining,
-                &board.player_b_bit_board,
-                &board.player_a_bit_board,
-            );
+            update_corner_moves_info(Player::Black, info, coord, window, board.player_b_remaining);
         }
     }
 }
@@ -661,14 +615,6 @@ pub fn update_move_cache_from_null_move(board: &mut BoardState) {
     for (coord, info) in my_corner_moves_info.iter_mut() {
         let window =
             get_corner_window_from_bitboard(&my_bitboard, &their_bitboard, *coord, info.direction);
-        update_corner_moves_info(
-            board.player,
-            info,
-            coord,
-            window,
-            my_remaining,
-            my_bitboard,
-            their_bitboard,
-        );
+        update_corner_moves_info(board.player, info, coord, window, my_remaining);
     }
 }
