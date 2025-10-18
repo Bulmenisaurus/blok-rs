@@ -74,8 +74,8 @@ pub struct BoardState {
     pub player_b_remaining: u32,
 
     /// Bitboards for tiles placed
-    pub player_a_bit_board: [u32; 22],
-    pub player_b_bit_board: [u32; 22],
+    pub player_a_bit_board: [u32; 24],
+    pub player_b_bit_board: [u32; 24],
 
     pub start_position: StartPosition,
 
@@ -98,8 +98,8 @@ impl BoardState {
             player: Player::White,
             player_a_remaining: 0x1fffff,
             player_b_remaining: 0x1fffff,
-            player_a_bit_board: [0; 22],
-            player_b_bit_board: [0; 22],
+            player_a_bit_board: [0; 24],
+            player_b_bit_board: [0; 24],
             null_move_counter: 0,
             start_position,
             player_a_corner_moves_info: HashMap::new(),
@@ -118,7 +118,7 @@ impl BoardState {
         }
     }
 
-    pub fn my_bitboard(&self) -> &[u32; 22] {
+    pub fn my_bitboard(&self) -> &[u32; 24] {
         if self.player == Player::White {
             &self.player_a_bit_board
         } else {
@@ -126,7 +126,7 @@ impl BoardState {
         }
     }
 
-    pub fn their_bitboard(&self) -> &[u32; 22] {
+    pub fn their_bitboard(&self) -> &[u32; 24] {
         if self.player == Player::White {
             &self.player_b_bit_board
         } else {

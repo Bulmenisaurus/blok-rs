@@ -49,8 +49,8 @@ pub fn is_move_legal(board: &BoardState, m: u32) -> bool {
 /// Since we need a mutable reference to the board, we can't use it immutably in `is_move_legal`
 pub fn is_move_legal_no_board(
     my_remaining: u32,
-    my_bitboard: &[u32; 22],
-    their_bitboard: &[u32; 22],
+    my_bitboard: &[u32; 24],
+    their_bitboard: &[u32; 24],
 
     m: u32,
 ) -> bool {
@@ -74,7 +74,7 @@ pub fn is_move_legal_no_board(
     // check if the move intersects with any of their pieces or adjacent to any of our pieces
     for (bb_y, row) in piece_bitboard.iter().enumerate() {
         let bitboard_row = (*row as u32) << location.x;
-        let idx = location.y as usize + bb_y + 4;
+        let idx = location.y as usize + bb_y + 5;
         let game_row = their_bitboard[idx]
             | my_bitboard[idx]
             | my_bitboard[idx] << 1
@@ -246,8 +246,8 @@ pub fn update_cache_corner_move(
     position: &Coord,
     player: Player,
     my_remaining: u32,
-    my_bitboard: &[u32; 22],
-    their_bitboard: &[u32; 22],
+    my_bitboard: &[u32; 24],
+    their_bitboard: &[u32; 24],
     check_legal: bool,
     check_bounds: bool,
 ) -> Option<u32> {
@@ -366,8 +366,8 @@ pub fn update_corner_moves_info(
     info: &mut CornerMovesInfo,
     coord: &Coord,
     my_remaining: u32,
-    my_bitboard: &[u32; 22],
-    their_bitboard: &[u32; 22],
+    my_bitboard: &[u32; 24],
+    their_bitboard: &[u32; 24],
 ) {
     let mut bitboard_copy = info.moves;
     let direction_enum = corner_direction_to_enum(info.direction);
@@ -421,7 +421,7 @@ pub fn update_move_cache(board: &mut BoardState, last_move: u32) {
         &ORIENTATIONS_BITBOARD_DATA[mov.movetype as usize][mov.orientation as usize];
 
     for bb_y in 0..piece_bitboard.len() {
-        my_bitboard[mov.y as usize + bb_y + 4] |= (piece_bitboard[bb_y] as u32) << mov.x;
+        my_bitboard[mov.y as usize + bb_y + 5] |= (piece_bitboard[bb_y] as u32) << mov.x;
     }
 
     // Update the corner data.
@@ -458,7 +458,7 @@ pub fn update_move_cache(board: &mut BoardState, last_move: u32) {
             continue;
         }
 
-        let offset = absolute_corner.y as usize + 4;
+        let offset = absolute_corner.y as usize + 5;
         let my_bitboard = board.my_bitboard()[offset]
             | board.their_bitboard()[offset]
             | board.my_bitboard()[offset] << 1
