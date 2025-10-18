@@ -213,7 +213,7 @@ impl BoardState {
 
     pub fn serialize(&self) -> String {
         let serialized = (1..15)
-            .map(|y| self.player_a_bit_board[y] as u32 | (self.player_b_bit_board[y] as u32) << 16)
+            .map(|y| self.player_a_bit_board[y] | self.player_b_bit_board[y] << 16)
             .map(|x| format!("{}", x))
             .collect::<Vec<String>>()
             .join(", ");

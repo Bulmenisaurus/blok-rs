@@ -33,13 +33,6 @@ pub struct CoordWithDirection {
     d: u8,
 }
 
-/// Check if a move is legal
-/// This method does not check if there is a corner!
-/// It only makes sure that the move is in bounds and not intersecting with any other pieces or touching any of our pieces.
-pub fn is_move_legal(board: &BoardState, m: u32) -> bool {
-    is_move_legal_no_board(board.my_remaining(), m)
-}
-
 pub fn is_move_legal_slow(board: &BoardState, m: u32) -> bool {
     is_move_legal_no_board_slow(
         board.my_remaining(),
@@ -379,7 +372,7 @@ pub fn get_legal_moves_from(from: &Coord, board: &BoardState) -> CornerMovesInfo
     let window = get_corner_window(board, *from, corner_direction as u8);
 
     for (i, m) in cached_moves.into_iter().enumerate() {
-        let piece_bb = CORNER_MOVES_DATA_U64[corner_direction as usize][i as usize];
+        let piece_bb = CORNER_MOVES_DATA_U64[corner_direction as usize][i];
         if piece_bb & window != 0 {
             continue;
         }
@@ -567,8 +560,8 @@ pub fn update_move_cache(board: &mut BoardState, last_move: u32) {
 
     board.skip_turn();
 
-    let my_bitboard = board.my_bitboard().clone();
-    let their_bitboard = board.their_bitboard().clone();
+    let my_bitboard = *board.my_bitboard();
+    let their_bitboard = *board.their_bitboard();
     if board.player == Player::White {
         for (coord, info) in board.player_a_corner_moves_info.iter_mut() {
             let window = get_corner_window_from_bitboard(
@@ -614,7 +607,7 @@ pub fn update_move_cache_from_null_move(board: &mut BoardState) {
 
     for (coord, info) in my_corner_moves_info.iter_mut() {
         let window =
-            get_corner_window_from_bitboard(&my_bitboard, &their_bitboard, *coord, info.direction);
+            get_corner_window_from_bitboard(my_bitboard, their_bitboard, *coord, info.direction);
         update_corner_moves_info(board.player, info, coord, window, my_remaining);
     }
 }
