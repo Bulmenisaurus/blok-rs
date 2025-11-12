@@ -4,7 +4,6 @@ use blok_rs::board::Score;
 use blok_rs::board::StartPosition;
 use blok_rs::movegen;
 
-
 #[test]
 pub fn root_node_has_all_moves() {
     let mut game = BoardState::new(StartPosition::Corner);
@@ -206,4 +205,16 @@ pub fn test_hash_transposition() {
     println!("Moves 1 hash: {}", moves_1_hash);
     println!("Moves 2 hash: {}", moves_2_hash);
     assert_eq!(moves_1_hash, moves_2_hash);
+}
+
+#[test]
+fn movegen_regression_test() {
+    // cause by an issue in the removal of corners to play
+    let mut board = BoardState::new(StartPosition::Corner);
+    board.do_move(0);
+    board.do_move(67152);
+    board.do_move(10515);
+    board.do_move(68678);
+    let moves = movegen::generate_moves(&board);
+    assert!(moves.contains(&33040));
 }
