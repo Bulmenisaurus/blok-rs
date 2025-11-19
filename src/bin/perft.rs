@@ -3,14 +3,15 @@ use blok_rs::{
     movegen::generate_moves,
 };
 use rand::{rng, seq::IndexedRandom};
+use std::env;
 use std::time::Instant;
 
 #[allow(dead_code)]
-fn perft(board: &BoardState, depth: usize) -> u64 {
+pub fn perft(board: &BoardState, depth: usize, split: bool) -> u64 {
     let moves = generate_moves(board);
 
-    if depth == 0 {
-        return 1;
+    if depth == 1 {
+        return moves.len() as u64;
     }
 
     let mut nodes = 0;
@@ -18,7 +19,12 @@ fn perft(board: &BoardState, depth: usize) -> u64 {
     for m in moves {
         let mut new_board = board.clone();
         new_board.do_move(m);
-        nodes += perft(&new_board, depth - 1);
+        let moves = perft(&new_board, depth - 1, false);
+        nodes += moves;
+
+        if split {
+            println!("depth: {}, move: {}, nodes: {}", depth, m, moves);
+        }
     }
 
     nodes
@@ -41,21 +47,45 @@ fn playout(amount: usize) -> u64 {
 }
 
 fn main() {
+    let args: Vec<String> = env::args().collect();
+
+    let depth = args
+        .get(1)
+        .unwrap_or(&String::from("5"))
+        .parse::<usize>()
+        .unwrap();
+
+    let move_strs: Vec<&str> = args
+        .get(2)
+        .map(|s| s.as_str())
+        .unwrap_or("")
+        .split_whitespace()
+        .collect();
+
+    let mut board = BoardState::new(StartPosition::Corner);
+
+    // Play the moves from the command line
+    for mstr in move_strs {
+        // Try to parse the move from string
+        let legal_moves = generate_moves(&board);
+        let parsed_move = legal_moves.iter().find(|&&m| m.to_string() == mstr);
+        match parsed_move {
+            Some(&m) => board.do_move(m),
+            None => {
+                eprintln!("Illegal or unrecognized move: {}", mstr);
+                std::process::exit(1);
+            }
+        }
+    }
+
+    println!("Split perft, depth {depth}");
     let start = Instant::now();
-    let moves_amount = playout(10_000);
+    let nodes = perft(&board, depth, true);
     let duration = start.elapsed();
     let secs = duration.as_secs_f64();
-    let moves_per_sec = moves_amount as f64 / secs;
+    let nodes_per_sec = nodes as f64 / secs;
     println!(
-        "Total moves: {}\nElapsed: {:.3} seconds\nMoves/second: {:.2}",
-        moves_amount, secs, moves_per_sec
+        "Total nodes: {}\nElapsed: {:.3} seconds\nNodes/second: {:.2}",
+        nodes, secs, nodes_per_sec
     );
-    // for depth in 0..=4 {
-    //     let board = BoardState::new(StartPosition::Corner);
-    //     let perft = perft(&board, depth);
-    //     println!("Depth {}: {}", depth, perft);
-    // }
-    // let board = BoardState::new(StartPosition::Corner);
-    // let nodes = perft(&board, 4);
-    // println!("{}", nodes);
 }
