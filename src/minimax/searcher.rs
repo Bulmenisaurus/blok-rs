@@ -12,12 +12,17 @@ use crate::minimax::eval::eval;
 const SCORE_INFINITY: i32 = 1_000_000;
 
 const MAX_DEPTH: usize = 100;
+const TIME_CHECK_INTERVAL: u32 = 2048;
 
 pub struct Searcher {
     transposition_table: TranspositionTable,
     history: [u32; 2 * 8 * 14 * 14 * 21],
     nodes: u32,
     max_nodes: u32,
+    check_time: bool,
+    /// Best root move that finished in the current iteration (kept across
+    /// aspiration re-searches so a timeout can still use it).
+    root_partial: Option<(i32, u32)>,
 }
 
 impl Searcher {
@@ -27,6 +32,8 @@ impl Searcher {
             history: [0; 2 * 8 * 14 * 14 * 21],
             nodes: 0,
             max_nodes: u32::MAX,
+            check_time: true,
+            root_partial: None,
         }
     }
 
@@ -40,6 +47,7 @@ impl Searcher {
         let mut previous_previous_score = 0;
 
         for current_depth in 1..=MAX_DEPTH {
+            self.root_partial = None;
             let search = self.aspiration_window(
                 state,
                 previous_previous_score,
@@ -48,20 +56,28 @@ impl Searcher {
                 end_time,
             );
 
-            let (search_score, search_move) = match search {
-                Ok((score, m)) => (score, m),
-                Err(()) => break,
-            };
-
-            eprintln!(
-                "depth {} bestmove {} score {} nodes {}",
-                current_depth, search_move, search_score, self.nodes,
-            );
-            assert_ne!(best_move, INVALID_MOVE, "Best move is invalid");
-
-            best_move = search_move;
-            previous_previous_score = previous_score;
-            previous_score = search_score;
+            match search {
+                Ok((search_score, search_move)) => {
+                    eprintln!(
+                        "depth {} bestmove {} score {} nodes {}",
+                        current_depth, search_move, search_score, self.nodes,
+                    );
+                    assert_ne!(search_move, INVALID_MOVE, "Best move is invalid");
+                    best_move = search_move;
+                    previous_previous_score = previous_score;
+                    previous_score = search_score;
+                }
+                Err(()) => {
+                    if let Some((search_score, search_move)) = self.root_partial {
+                        eprintln!(
+                            "depth {} bestmove {} score {} nodes {} (partial)",
+                            current_depth, search_move, search_score, self.nodes,
+                        );
+                        best_move = search_move;
+                    }
+                    break;
+                }
+            }
         }
 
         best_move
@@ -71,6 +87,7 @@ impl Searcher {
     /// Useful for testing the engine's performance at a certain number of nodes
     pub fn search_root_nodes(&mut self, state: &BoardState, nodes: u32) -> u32 {
         self.max_nodes = nodes;
+        self.check_time = false;
         // an hour
         let timeout_ms = 3_600_000;
         self.search_root(state, timeout_ms)
@@ -150,7 +167,10 @@ impl Searcher {
             return Err(());
         }
 
-        if Instant::now() > deadline {
+        if self.check_time
+            && self.nodes & (TIME_CHECK_INTERVAL - 1) == 0
+            && Instant::now() > deadline
+        {
             return Err(());
         }
 
@@ -202,20 +222,29 @@ impl Searcher {
         let mut alpha = alpha;
 
         let mut legal_moves = generate_moves(state);
-        // let amount = legal_moves.len();
-        self.order_moves(&mut legal_moves, tt_move);
+        let lmp_moves_threshold = 10 + 5 * depth * depth;
+        // Same cutoff LMP uses: don't sort moves we will never search.
+        let order_k = if !root_node && max_depth > 2 {
+            lmp_moves_threshold.min(legal_moves.len())
+        } else {
+            legal_moves.len()
+        };
+        self.order_moves(&mut legal_moves, tt_move, order_k);
+        if order_k < legal_moves.len() {
+            legal_moves.truncate(order_k);
+        }
 
         let mut best_score = -SCORE_INFINITY;
         let mut hash_bound = TTFlag::UpperBound;
         let mut best_move = legal_moves[0];
 
         let mut moves_played = 0;
+        let mut tried: Vec<u32> = Vec::with_capacity(legal_moves.len());
 
         for m in legal_moves {
             // Late move pruning - skip moves that are too late in move ordering
             // https://www.chessprogramming.org/Futility_Pruning#Move_Count_Based_Pruning
             // Much more aggresive version of LMR
-            let lmp_moves_threshold = 10 + 5 * depth * depth;
             if !root_node && moves_played >= lmp_moves_threshold && max_depth > 2 {
                 break;
             }
@@ -224,6 +253,7 @@ impl Searcher {
             new_state.do_move(m);
 
             moves_played += 1;
+            tried.push(m);
             //?
             // if root_node {
             //     println!("Playing move: {} {}/{}", m, moves_played, amount);
@@ -268,20 +298,28 @@ impl Searcher {
                 best_move = m;
             }
             if score > alpha {
-                // if root_node {
-                //     println!("Raised alpha {} -> {}", alpha, score);
-                // }
                 alpha = score;
                 hash_bound = TTFlag::Exact;
+                if root_node {
+                    self.root_partial = Some((best_score, best_move));
+                }
             }
 
             // Fail high cutoff
             if alpha >= beta {
                 hash_bound = TTFlag::LowerBound;
                 if m != NULL_MOVE {
-                    let mov = Move::unpack(m);
-                    // the deeper we go, the more we increase the history
-                    self.history[self.move_history_idx(mov)] += depth as u32;
+                    let bonus = depth as u32;
+                    self.history[self.move_history_idx(Move::unpack(m))] += bonus;
+                    // History malus: quiet moves that were tried before the
+                    // cutoff were over-ordered.
+                    for &prev in tried.iter().take(moves_played - 1) {
+                        if prev == NULL_MOVE {
+                            continue;
+                        }
+                        let idx = self.move_history_idx(Move::unpack(prev));
+                        self.history[idx] = self.history[idx].saturating_sub(bonus);
+                    }
                 }
                 break;
             }
@@ -309,27 +347,58 @@ impl Searcher {
         Ok((best_score, best_move))
     }
 
-    fn order_moves(&self, moves: &mut [u32], tt_move: u32) {
-        moves.sort_by_key(|m| {
-            if *m == NULL_MOVE {
-                return 0;
+    fn move_order_key(&self, m: u32, tt_move: u32) -> u32 {
+        if m == NULL_MOVE {
+            return 0;
+        }
+        if m == tt_move {
+            return u32::MAX;
+        }
+        let history_score = self.history[self.move_history_idx(Move::unpack(m))];
+        history_score * 5 + PIECE_DATA[Move::get_movetype(m) as usize].len() as u32
+    }
+
+    /// Order the first `k` moves that will actually be searched. Depth-1 LMP
+    /// only looks at ~15 of ~140 moves; sorting the rest is wasted.
+    fn order_moves(&self, moves: &mut [u32], tt_move: u32, k: usize) {
+        let n = moves.len();
+        if n <= 1 {
+            return;
+        }
+        let k = k.clamp(1, n);
+
+        if n > 512 {
+            let mut idx: Vec<(u32, usize, u32)> = moves
+                .iter()
+                .enumerate()
+                .map(|(i, &m)| (self.move_order_key(m, tt_move), i, m))
+                .collect();
+            idx.sort_unstable_by(|a, b| b.0.cmp(&a.0).then(b.1.cmp(&a.1)));
+            for i in 0..n {
+                moves[i] = idx[i].2;
             }
+            return;
+        }
 
-            // always put the tt move first
-            if *m == tt_move {
-                return 999999;
+        let mut keyed = [(0u32, 0u32, 0u32); 512];
+        for i in 0..n {
+            keyed[i] = (self.move_order_key(moves[i], tt_move), i as u32, moves[i]);
+        }
+        let keyed = &mut keyed[..n];
+        // Key descending, then original index descending — matches stable
+        // sort_by_key + reverse on whatever order generate_moves produced.
+        if k < n {
+            keyed.select_nth_unstable_by(k - 1, |a, b| b.0.cmp(&a.0).then(b.1.cmp(&a.1)));
+            keyed[..k].sort_unstable_by(|a, b| b.0.cmp(&a.0).then(b.1.cmp(&a.1)));
+            for i in 0..k {
+                moves[i] = keyed[i].2;
             }
-
-            // order by history first, then by move type
-            let history_score = self.history[self.move_history_idx(Move::unpack(*m))];
-
-            let move_type_score = PIECE_DATA[Move::get_movetype(*m) as usize].len() as u32;
-
-            history_score * 5 + move_type_score
-        });
-
-        // Descending order
-        moves.reverse();
+        } else {
+            keyed.sort_unstable_by(|a, b| b.0.cmp(&a.0).then(b.1.cmp(&a.1)));
+            for i in 0..n {
+                moves[i] = keyed[i].2;
+            }
+        }
     }
 
     fn move_history_idx(&self, mov: Move) -> usize {
