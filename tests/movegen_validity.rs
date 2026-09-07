@@ -4,7 +4,6 @@ use blok_rs::board::Score;
 use blok_rs::board::StartPosition;
 use blok_rs::movegen;
 
-use serde_json;
 
 #[test]
 pub fn root_node_has_all_moves() {
@@ -80,16 +79,18 @@ pub fn game_length_movegen() {
 
     for single_game_data in test_data {
         let mut game = BoardState::new(StartPosition::Corner);
+        let mut game_moves = Vec::new();
 
         for move_data in single_game_data {
             game.do_move(move_data[0]);
+            game_moves.push(move_data[0]);
             let mut moves = movegen::generate_moves(&game);
             moves.sort();
 
             let mut expected_moves = move_data[1..].to_vec();
             expected_moves.sort();
 
-            assert_eq!(moves, expected_moves);
+            assert_eq!(moves, expected_moves, "Game moves: {:?}", game_moves);
         }
     }
 }
@@ -181,4 +182,28 @@ fn playout_min(start_pos: StartPosition) -> Score {
     }
 
     game.score()
+}
+
+#[test]
+pub fn test_hash_transposition() {
+    let moves1 = vec![6144, 67152, 41225, 69168, 39056];
+    let moves2 = vec![6144, 67152, 39056, 69168, 41225];
+
+    let moves_1_hash = {
+        let mut board = BoardState::new(StartPosition::Corner);
+        for m in moves1 {
+            board.do_move(m);
+        }
+        board.hash
+    };
+    let moves_2_hash = {
+        let mut board = BoardState::new(StartPosition::Corner);
+        for m in moves2 {
+            board.do_move(m);
+        }
+        board.hash
+    };
+    println!("Moves 1 hash: {}", moves_1_hash);
+    println!("Moves 2 hash: {}", moves_2_hash);
+    assert_eq!(moves_1_hash, moves_2_hash);
 }

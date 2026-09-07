@@ -1,84 +1,228 @@
-use blok_rs::board::{BoardState, GameResult, StartPosition};
+use blok_rs::board::{BoardState, GameResult, Player, StartPosition};
 use blok_rs::movegen::generate_moves;
 use rand::rng;
 use rand::seq::IndexedRandom;
+use rayon::prelude::*;
 use std::process::{Command, Stdio};
+use std::sync::{Arc, Mutex};
 
 /// Path to the two engine executables to compare.
 /// You may want to change these to the correct paths for your system.
-const ENGINE1_PATH: &str = "./executables/hce-latest";
-const ENGINE2_PATH: &str = "./executables/nn-latest";
-const NUM_GAME_PAIRS: usize = 50;
+const ENGINE1_PATH: &str = "./executables/ab-test";
+const ENGINE2_PATH: &str = "./executables/ab-latest";
+
 const OPENING_PLIES: usize = 6;
+const PARALLEL_GAMES: usize = 4;
 
-fn generate_opening() -> Vec<u32> {
-    let mut board = BoardState::new(StartPosition::Corner);
-    let mut moves: Vec<u32> = Vec::new();
-    let mut rng = rng();
+const ALPHA: f64 = 0.05;
+const BETA: f64 = 0.05;
 
-    for _ in 0..OPENING_PLIES {
-        let legal_moves = generate_moves(&board);
-        if legal_moves.is_empty() {
-            break;
-        }
-        let &chosen_move = legal_moves.choose(&mut rng).unwrap();
-        board.do_move(chosen_move);
-        moves.push(chosen_move);
-    }
-    moves
+const DRAW_RATE: f64 = 0.05;
+
+fn elo_to_prob(elo: f64) -> f64 {
+    1.0 / (1.0 + 10.0f64.powf(-elo / 400.0))
 }
 
-fn main() {
-    let mut total_engine1 = 0;
-    let mut total_engine2 = 0;
-    let mut total_draws = 0;
+#[derive(PartialEq)]
+enum Outcome {
+    Win,
+    Draw,
+    Lose,
+}
 
-    for pair in 0..NUM_GAME_PAIRS {
-        // Generate a random opening for this pair
-        let opening = generate_opening();
+#[derive(PartialEq)]
+enum SPRTResult {
+    SignificantNull,
+    SignificantAlt,
+    NotSignificant,
+}
 
-        // Game 1: Engine1 as White, Engine2 as Black
-        let result1 = play_game(ENGINE1_PATH, ENGINE2_PATH, &opening);
-        match result1 {
-            GameResult::PlayerAWon => total_engine1 += 1,
-            GameResult::PlayerBWon => total_engine2 += 1,
-            GameResult::Draw => total_draws += 1,
-            GameResult::InProgress => unreachable!(),
+#[derive(Clone)]
+struct GameTask<'a> {
+    engine_white: &'a str,
+    engine_black: &'a str,
+    opening: Vec<u32>,
+    perspective: GamePerspective,
+}
+
+#[derive(Clone, Copy)]
+enum GamePerspective {
+    Engine1,
+    Engine2,
+}
+
+#[allow(clippy::upper_case_acronyms)]
+struct SPRT {
+    llr: f64,
+    total_wins: usize,
+    total_losses: usize,
+    total_draws: usize,
+    elo_0: f64,
+    elo_1: f64,
+}
+
+impl SPRT {
+    pub fn new(elo_0: f64, elo_1: f64) -> Self {
+        Self {
+            llr: 0.0,
+            total_wins: 0,
+            total_losses: 0,
+            total_draws: 0,
+            elo_0,
+            elo_1,
         }
-        println!(
-            "Pair {} Game 1 result: {:?} (Engine1 as White, Engine2 as Black)",
-            pair + 1,
-            result1
-        );
-
-        // Game 2: Engine2 as White, Engine1 as Black
-        let result2 = play_game(ENGINE2_PATH, ENGINE1_PATH, &opening);
-        match result2 {
-            GameResult::PlayerAWon => total_engine2 += 1,
-            GameResult::PlayerBWon => total_engine1 += 1,
-            GameResult::Draw => total_draws += 1,
-            GameResult::InProgress => unreachable!(),
-        }
-        println!(
-            "Pair {} Game 2 result: {:?} (Engine2 as White, Engine1 as Black)",
-            pair + 1,
-            result2
-        );
-
-        println!(
-            "Cumulative: Engine1: {}, Engine2: {}, Draws: {}",
-            total_engine1, total_engine2, total_draws
-        );
     }
 
+    fn get_p1_win(&self) -> f64 {
+        (1.0 - DRAW_RATE) * elo_to_prob(self.elo_1)
+    }
+
+    fn get_p1_draw() -> f64 {
+        DRAW_RATE
+    }
+
+    fn get_p1_lose(&self) -> f64 {
+        (1.0 - DRAW_RATE) * (1.0 - elo_to_prob(self.elo_1))
+    }
+
+    fn get_p0_win(&self) -> f64 {
+        (1.0 - DRAW_RATE) * elo_to_prob(self.elo_0)
+    }
+
+    fn get_p0_draw() -> f64 {
+        DRAW_RATE
+    }
+
+    fn get_p0_lose(&self) -> f64 {
+        (1.0 - DRAW_RATE) * (1.0 - elo_to_prob(self.elo_0))
+    }
+
+    // The lower bound of the SPRT, indicates that the null hypothesis is true
+    pub fn get_sprt_a() -> f64 {
+        f64::ln(BETA / (1.0 - ALPHA))
+    }
+
+    // The upper bound of the SPRT, indicates that the alternative hypothesis is true
+    pub fn get_sprt_b() -> f64 {
+        f64::ln((1.0 - BETA) / ALPHA)
+    }
+
+    pub fn update(&mut self, result: Outcome) {
+        self.total_wins += if result == Outcome::Win { 1 } else { 0 };
+        self.total_losses += if result == Outcome::Lose { 1 } else { 0 };
+        self.total_draws += if result == Outcome::Draw { 1 } else { 0 };
+
+        match result {
+            Outcome::Win => self.llr += f64::ln(self.get_p1_win() / self.get_p0_win()),
+            Outcome::Draw => self.llr += f64::ln(Self::get_p1_draw() / Self::get_p0_draw()),
+            Outcome::Lose => self.llr += f64::ln(self.get_p1_lose() / self.get_p0_lose()),
+        }
+    }
+
+    pub fn result(&self) -> SPRTResult {
+        if self.llr < Self::get_sprt_a() {
+            return SPRTResult::SignificantNull;
+        }
+        if self.llr > Self::get_sprt_b() {
+            return SPRTResult::SignificantAlt;
+        }
+
+        SPRTResult::NotSignificant
+    }
+}
+fn main() {
+    let args: Vec<String> = std::env::args().collect();
+
+    if args.len() != 2 {
+        eprintln!("Usage: {} <gain|nonregr>", args[0]);
+        std::process::exit(1);
+    }
+
+    let (elo_0, elo_1) = match args[1].as_str() {
+        "gain" => (0.0, 5.0),
+        "nonregr" => (-10.0, 0.0),
+        _ => {
+            eprintln!("Invalid mode: {}. Use 'gain' or 'nonregr'", args[1]);
+            std::process::exit(1);
+        }
+    };
+
     println!(
-        "Final result after {} pairs ({} games):",
-        NUM_GAME_PAIRS,
-        NUM_GAME_PAIRS * 2
+        "Starting comparison between {} and {}",
+        ENGINE1_PATH, ENGINE2_PATH
     );
-    println!("Engine1: {}", total_engine1);
-    println!("Engine2: {}", total_engine2);
-    println!("Draws: {}", total_draws);
+    println!("SPRT elo bounds: {} - {}", elo_0, elo_1);
+    let sprt = Arc::new(Mutex::new(SPRT::new(elo_0, elo_1)));
+
+    while {
+        let sprt_guard = sprt.lock().unwrap();
+        sprt_guard.result() == SPRTResult::NotSignificant
+    } {
+        // Generate openings for parallel games
+        let openings: Vec<Vec<u32>> = (0..PARALLEL_GAMES).map(|_| generate_opening()).collect();
+
+        // Create game tasks for parallel execution
+        let game_tasks: Vec<_> = openings
+            .into_iter()
+            .flat_map(|opening| {
+                vec![
+                    GameTask {
+                        engine_white: ENGINE1_PATH,
+                        engine_black: ENGINE2_PATH,
+                        opening: opening.clone(),
+                        perspective: GamePerspective::Engine1,
+                    },
+                    GameTask {
+                        engine_white: ENGINE2_PATH,
+                        engine_black: ENGINE1_PATH,
+                        opening,
+                        perspective: GamePerspective::Engine2,
+                    },
+                ]
+            })
+            .collect();
+
+        // Run games in parallel
+        let results: Vec<Outcome> = game_tasks
+            .par_iter()
+            .map(|task| {
+                let result = play_game(task.engine_white, task.engine_black, &task.opening);
+                match (result, task.perspective) {
+                    (GameResult::Win(Player::White), GamePerspective::Engine1) => Outcome::Win,
+                    (GameResult::Win(Player::Black), GamePerspective::Engine1) => Outcome::Lose,
+                    (GameResult::Win(Player::White), GamePerspective::Engine2) => Outcome::Lose,
+                    (GameResult::Win(Player::Black), GamePerspective::Engine2) => Outcome::Win,
+                    (GameResult::Draw, _) => Outcome::Draw,
+                    (GameResult::InProgress, _) => unreachable!(),
+                }
+            })
+            .collect();
+
+        // Update SPRT with all results
+        {
+            let mut sprt_guard = sprt.lock().unwrap();
+            for result in results {
+                sprt_guard.update(result);
+            }
+
+            println!(
+                "WDL {} {} {} -> LLR {:.2} ({:.2}, {:.2})",
+                sprt_guard.total_wins,
+                sprt_guard.total_draws,
+                sprt_guard.total_losses,
+                sprt_guard.llr,
+                SPRT::get_sprt_a(),
+                SPRT::get_sprt_b()
+            );
+        }
+    }
+
+    let sprt_guard = sprt.lock().unwrap();
+    match sprt_guard.result() {
+        SPRTResult::SignificantNull => println!("Significant Null"),
+        SPRTResult::SignificantAlt => println!("Significant Alt"),
+        SPRTResult::NotSignificant => println!("Not Significant"),
+    }
 }
 
 /// Plays a single game between two engines, returning the result from the perspective of the first engine (as White).
@@ -160,10 +304,22 @@ fn play_game(engine_white: &str, engine_black: &str, opening_moves: &[u32]) -> G
         };
     }
 
-    println!(
-        "Moves: {:?} [player a: {}, player b: {}]",
-        moves, engine_white, engine_black
-    );
-
     board.game_result()
+}
+
+fn generate_opening() -> Vec<u32> {
+    let mut board = BoardState::new(StartPosition::Corner);
+    let mut moves: Vec<u32> = Vec::new();
+    let mut rng = rng();
+
+    for _ in 0..OPENING_PLIES {
+        let legal_moves = generate_moves(&board);
+        if legal_moves.is_empty() {
+            break;
+        }
+        let &chosen_move = legal_moves.choose(&mut rng).unwrap();
+        board.do_move(chosen_move);
+        moves.push(chosen_move);
+    }
+    moves
 }

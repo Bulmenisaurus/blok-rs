@@ -1,3 +1,3 @@
 pub mod board;
-pub mod mcts;
+pub mod minimax;
 pub mod movegen;

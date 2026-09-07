@@ -5,7 +5,8 @@ profile.json.gz
 
 *.bin
 *.bin.gz
+*.log
 
 .venv
 
-executables/
+executables/*

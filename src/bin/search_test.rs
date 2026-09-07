@@ -1,16 +1,35 @@
 use blok_rs::board::BoardState;
+use blok_rs::board::GameResult;
 use blok_rs::board::StartPosition;
-use blok_rs::mcts::MonteCarlo;
+use blok_rs::minimax;
+use blok_rs::movegen::generate_moves;
+use rand::SeedableRng;
+use rand::prelude::*;
+use rand::seq::IndexedRandom;
 
 pub fn main() {
-    let board = BoardState::new(StartPosition::Corner);
-    let mut mcts = MonteCarlo::new();
+    let mut board = BoardState::new(StartPosition::Corner);
 
-    mcts.run_search(&board, "easy");
-    let best_move = mcts.best_play().unwrap();
-    let stats = mcts.get_stats();
-    println!(
-        "Result of search: {} (eval ~ {}/{})",
-        best_move, stats.0, stats.1
-    );
+    const SEED: [u8; 32] = [0; 32];
+    let mut rng = SmallRng::from_seed(SEED);
+    let mut opening_moves: Vec<u32> = vec![];
+    for _ in 0..10 {
+        let moves = generate_moves(&board);
+        let m = moves.choose(&mut rng).unwrap();
+        opening_moves.push(*m);
+        board.do_move(*m);
+    }
+
+    println!("Opening moves: {:?}", opening_moves);
+    while board.game_result() == GameResult::InProgress {
+        // Option 1: search nodes (for perf)
+        // board.do_move(minimax::search_nodes(&board, 5_000));
+
+        // Option 2: search (for benchmarking)
+        board.do_move(minimax::search(&board, 2_000));
+    }
+
+    // let best_move = minimax::search(&board, 1_000_000);
+
+    // println!("Best move: {}", best_move);
 }

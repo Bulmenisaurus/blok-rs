@@ -1,6 +1,6 @@
 use blok_rs::{
     board::{BoardState, StartPosition},
-    mcts::MonteCarlo,
+    minimax,
     movegen::generate_moves,
 };
 use std::env;
@@ -33,9 +33,7 @@ fn main() {
     }
 
     // Now think and print the best response move
-    let mut mcts = MonteCarlo::new();
 
-    mcts.run_search_timeout(&board, THINK_DURATION_MS);
-    let best_move = mcts.best_play().unwrap();
+    let best_move = minimax::search(&board, THINK_DURATION_MS);
     println!("{}", best_move);
 }

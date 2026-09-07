@@ -20,19 +20,13 @@ impl Player {
 
 #[derive(serde::Deserialize, Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct Coord {
-    pub x: u8,
-    pub y: u8,
-}
-
-#[derive(serde::Deserialize, Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct CoordOffset {
-    pub x: i8,
-    pub y: i8,
+    pub x: i32,
+    pub y: i32,
 }
 
 impl Coord {
     pub fn in_bounds(&self) -> bool {
-        self.x < 14 && self.y < 14
+        self.x < 14 && self.y < 14 && self.x >= 0 && self.y >= 0
     }
 }
 
@@ -60,32 +54,42 @@ pub struct Score {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum GameResult {
     InProgress,
-    PlayerAWon,
-    PlayerBWon,
+    Win(Player),
     Draw,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct CornerMovesInfo {
+    pub direction: u8,
+    pub moves: u128,
 }
 
 #[derive(Debug, Clone)]
 pub struct BoardState {
-    // Player to move
+    /// Player to move
     pub player: Player,
 
-    // Remaining pieces for each player, as a bitmask
+    /// Remaining pieces for each player, as a bitmask
     pub player_a_remaining: u32,
     pub player_b_remaining: u32,
 
-    // Bitboards for tiles placed
-    pub player_a_bit_board: [u16; 14],
-    pub player_b_bit_board: [u16; 14],
+    /// Bitboards for tiles placed
+    pub player_a_bit_board: [u16; 16],
+    pub player_b_bit_board: [u16; 16],
 
     pub start_position: StartPosition,
 
-    // How many null moves have been made (>= 2 in a row is game end)
+    /// How many null moves have been made (>= 2 in a row is game end)
     pub null_move_counter: u8,
 
-    // Cached corner moves
-    pub player_a_corner_moves: HashMap<Coord, Vec<u32>>,
-    pub player_b_corner_moves: HashMap<Coord, Vec<u32>>,
+    /// Cached corner moves
+    pub player_a_corner_moves_info: HashMap<Coord, CornerMovesInfo>,
+    pub player_b_corner_moves_info: HashMap<Coord, CornerMovesInfo>,
+
+    pub corner_direction: [u8; 196],
+    pub history: Vec<u32>,
+
+    pub hash: u64,
 }
 
 impl BoardState {
@@ -94,12 +98,55 @@ impl BoardState {
             player: Player::White,
             player_a_remaining: 0x1fffff,
             player_b_remaining: 0x1fffff,
-            player_a_bit_board: [0; 14],
-            player_b_bit_board: [0; 14],
+            player_a_bit_board: [0; 16],
+            player_b_bit_board: [0; 16],
             null_move_counter: 0,
             start_position,
-            player_a_corner_moves: HashMap::new(),
-            player_b_corner_moves: HashMap::new(),
+            player_a_corner_moves_info: HashMap::new(),
+            player_b_corner_moves_info: HashMap::new(),
+            corner_direction: [0; 196],
+            history: Vec::new(),
+            hash: 0,
+        }
+    }
+
+    pub fn my_remaining(&self) -> u32 {
+        if self.player == Player::White {
+            self.player_a_remaining
+        } else {
+            self.player_b_remaining
+        }
+    }
+
+    pub fn my_bitboard(&self) -> &[u16; 16] {
+        if self.player == Player::White {
+            &self.player_a_bit_board
+        } else {
+            &self.player_b_bit_board
+        }
+    }
+
+    pub fn their_bitboard(&self) -> &[u16; 16] {
+        if self.player == Player::White {
+            &self.player_b_bit_board
+        } else {
+            &self.player_a_bit_board
+        }
+    }
+
+    pub fn my_corner_moves_info(&self) -> &HashMap<Coord, CornerMovesInfo> {
+        if self.player == Player::White {
+            &self.player_a_corner_moves_info
+        } else {
+            &self.player_b_corner_moves_info
+        }
+    }
+
+    pub fn their_corner_moves_info(&self) -> &HashMap<Coord, CornerMovesInfo> {
+        if self.player == Player::White {
+            &self.player_b_corner_moves_info
+        } else {
+            &self.player_a_corner_moves_info
         }
     }
 
@@ -137,14 +184,15 @@ impl BoardState {
 
         let score = self.score();
         match score.player_a.cmp(&score.player_b) {
-            std::cmp::Ordering::Greater => GameResult::PlayerAWon,
-            std::cmp::Ordering::Less => GameResult::PlayerBWon,
+            std::cmp::Ordering::Greater => GameResult::Win(Player::White),
+            std::cmp::Ordering::Less => GameResult::Win(Player::Black),
             std::cmp::Ordering::Equal => GameResult::Draw,
         }
     }
 
     // change states, incrementally update move cache
     pub fn do_move(&mut self, board_move: u32) {
+        self.history.push(board_move);
         if board_move == NULL_MOVE {
             self.null_move_counter += 1;
             self.skip_turn();
@@ -161,5 +209,15 @@ impl BoardState {
 
     pub fn skip_turn(&mut self) {
         self.player = self.player.other();
+    }
+
+    pub fn serialize(&self) -> String {
+        let serialized = (1..15)
+            .map(|y| self.player_a_bit_board[y] as u32 | (self.player_b_bit_board[y] as u32) << 16)
+            .map(|x| format!("{}", x))
+            .collect::<Vec<String>>()
+            .join(", ");
+
+        format!("[{}]", serialized)
     }
 }
