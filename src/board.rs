@@ -90,6 +90,10 @@ pub struct BoardState {
     pub history: Vec<u32>,
 
     pub hash: u64,
+
+    /// Last non-null move per player (INVALID_MOVE if none). Used to skip
+    /// corner-cache revalidation for corners far from recent placements.
+    pub last_move: [u32; 2],
 }
 
 impl BoardState {
@@ -107,6 +111,7 @@ impl BoardState {
             corner_direction: [0; 196],
             history: Vec::new(),
             hash: 0,
+            last_move: [crate::movegen::INVALID_MOVE; 2],
         }
     }
 

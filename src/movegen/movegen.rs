@@ -2,12 +2,141 @@ use crate::board::{
     BoardState, Coord, CornerMovesInfo, Player, StartPosition, get_start_position_coord,
 };
 
-use crate::movegen::blok_move::{Move, NULL_MOVE};
+use crate::movegen::blok_move::{INVALID_MOVE, Move, NULL_MOVE};
 use crate::movegen::movegen_data::{
     CORNER_ATTACHERS_DIR_DATA, CORNER_MOVES_DATA, CORNERS_DATA, ORIENTATION_DATA,
     ORIENTATIONS_BITBOARD_DATA, SHORT_BOUNDING_BOX_DATA,
 };
 use crate::movegen::zobrist::{NULL_MOVE_COUNT_ZOBRIST, PLAYER_A_ZOBRIST, PLAYER_B_ZOBRIST};
+
+use once_cell::sync::Lazy;
+
+/// Window geometry: every cached move's tiles lie within [-4, 4]^2 of the corner cell.
+const WIN: i32 = 9;
+const HALF: i32 = 4;
+
+#[inline]
+fn dir_offset(d: usize) -> (i32, i32) {
+    match d {
+        0 => (-1, -1),
+        1 => (1, -1),
+        2 => (1, 1),
+        _ => (-1, 1),
+    }
+}
+
+/// Footprint of each cached move relative to the corner cell, as a 9x9 window bitmask.
+pub static CORNER_MOVE_FOOTPRINTS: Lazy<[[u128; 127]; 4]> = Lazy::new(|| {
+    let mut out = [[0u128; 127]; 4];
+    for d in 0..4 {
+        let off = dir_offset(d);
+        for i in 0..127 {
+            let mov = Move::unpack(CORNER_MOVES_DATA[d][i]);
+            let rel = (mov.x - (7 + off.0), mov.y - (7 + off.1));
+            let mut fp = 0u128;
+            for tile in &ORIENTATION_DATA[mov.movetype as usize][mov.orientation as usize] {
+                let rx = rel.0 + tile.x;
+                let ry = rel.1 + tile.y;
+                assert!(rx.abs() <= HALF && ry.abs() <= HALF);
+                fp |= 1u128 << ((ry + HALF) * WIN + (rx + HALF));
+            }
+            out[d][i] = fp;
+        }
+    }
+    out
+});
+
+/// For each direction and piece type, bitmask of cached moves that use that type.
+pub static CORNER_MOVE_TYPE_MASKS: Lazy<[[u128; 21]; 4]> = Lazy::new(|| {
+    let mut out = [[0u128; 21]; 4];
+    for d in 0..4 {
+        for i in 0..127 {
+            let t = Move::get_movetype(CORNER_MOVES_DATA[d][i]) as usize;
+            out[d][t] |= 1u128 << i;
+        }
+    }
+    out
+});
+
+/// Bitmask of cached moves whose piece type is still available, per direction.
+#[inline]
+fn available_masks(my_remaining: u32) -> [u128; 4] {
+    let mut out = [0u128; 4];
+    let mut r = my_remaining;
+    while r != 0 {
+        let t = r.trailing_zeros() as usize;
+        r &= r - 1;
+        for d in 0..4 {
+            out[d] |= CORNER_MOVE_TYPE_MASKS[d][t];
+        }
+    }
+    out
+}
+
+#[inline]
+fn forbidden_row(my: &[u16; 16], their: &[u16; 16], idx: usize) -> u32 {
+    (their[idx] | my[idx] | my[idx] << 1 | my[idx] >> 1 | my[idx - 1] | my[idx + 1]) as u32 & 0x3fff
+}
+
+/// 9x9 window of cells where the side to move may not place a tile, centred on (cx, cy).
+/// Off-board cells count as forbidden, which subsumes the bounds check.
+#[inline]
+fn forbidden_window(my: &[u16; 16], their: &[u16; 16], cx: i32, cy: i32) -> u128 {
+    let mut w = 0u128;
+    for ry in -HALF..=HALF {
+        let y = cy + ry;
+        let bits: u32 = if !(0..14).contains(&y) {
+            0x1ff
+        } else {
+            let wide = (forbidden_row(my, their, (y + 1) as usize) << HALF) | !(0x3fffu32 << HALF);
+            (wide >> cx) & 0x1ff
+        };
+        w |= (bits as u128) << ((ry + HALF) * WIN);
+    }
+    w
+}
+
+/// Bounding box (x0, y0, x1, y1) inclusive of a placed piece, grown by `grow`.
+#[inline]
+fn move_region(m: u32, grow: i32) -> Option<(i32, i32, i32, i32)> {
+    if m == INVALID_MOVE || m == NULL_MOVE {
+        return None;
+    }
+    let mov = Move::unpack(m);
+    let (bx, by) = SHORT_BOUNDING_BOX_DATA[mov.movetype as usize][mov.orientation as usize];
+    Some((
+        mov.x - grow,
+        mov.y - grow,
+        mov.x + bx as i32 + grow,
+        mov.y + by as i32 + grow,
+    ))
+}
+
+#[inline]
+fn window_hits(c: &Coord, r: &Option<(i32, i32, i32, i32)>) -> bool {
+    match r {
+        None => false,
+        Some((x0, y0, x1, y1)) => {
+            c.x + HALF >= *x0 && c.x - HALF <= *x1 && c.y + HALF >= *y0 && c.y - HALF <= *y1
+        }
+    }
+}
+
+/// Remove the cached moves that intersect the forbidden window.
+#[inline]
+fn filter_by_window(moves: u128, d: usize, w: u128) -> u128 {
+    let foot = &CORNER_MOVE_FOOTPRINTS[d];
+    let mut out = moves;
+    let mut bits = moves;
+    while bits != 0 {
+        let i = bits.trailing_zeros() as usize;
+        bits &= bits - 1;
+        if foot[i] & w != 0 {
+            out &= !(1u128 << i);
+        }
+    }
+    out
+}
 
 #[derive(serde::Deserialize, Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum CornerDirection {
@@ -224,7 +353,7 @@ pub fn generate_moves(board: &BoardState) -> Vec<u32> {
         return generate_first_moves(board);
     }
 
-    let mut unique_moves_info: Vec<u32> = Vec::new();
+    let mut unique_moves_info: Vec<u32> = Vec::with_capacity(512);
     for (coord, info) in board.my_corner_moves_info().iter() {
         let moves = get_corner_moves_from_bitboard(board, *info, coord);
         unique_moves_info.extend(moves);
@@ -294,36 +423,12 @@ pub fn update_cache_corner_move(
 /// Used to generate moves from a corner when a new piece is placed
 // TODO: hardcode some options for moves that are guaranteed to not intersect the piece we are placing
 pub fn get_legal_moves_from(from: &Coord, board: &BoardState) -> CornerMovesInfo {
-    let corner_direction =
-        corner_direction_to_enum(board.corner_direction[from.y as usize * 14 + from.x as usize]);
-
-    let cached_moves = CORNER_MOVES_DATA[corner_direction as usize];
-
-    let mut bitboard: u128 = 0;
-    let my_remaining = board.my_remaining();
-    let my_bitboard = board.my_bitboard();
-    let their_bitboard = board.their_bitboard();
-
-    for (i, m) in cached_moves.into_iter().enumerate() {
-        let updated = update_cache_corner_move(
-            m,
-            corner_direction,
-            from,
-            board.player,
-            my_remaining,
-            my_bitboard,
-            their_bitboard,
-            true,
-            true,
-        );
-        if updated.is_some() {
-            bitboard |= 1 << i;
-        }
-    }
-
+    let d = board.corner_direction[from.y as usize * 14 + from.x as usize] as usize;
+    let avail = available_masks(board.my_remaining())[d];
+    let w = forbidden_window(board.my_bitboard(), board.their_bitboard(), from.x, from.y);
     CornerMovesInfo {
-        direction: corner_direction as u8,
-        moves: bitboard,
+        direction: d as u8,
+        moves: filter_by_window(avail, d, w),
     }
 }
 
@@ -362,44 +467,24 @@ fn update_null_hash(board: &mut BoardState) {
 }
 
 pub fn update_corner_moves_info(
-    player: Player,
     info: &mut CornerMovesInfo,
     coord: &Coord,
-    my_remaining: u32,
+    avail: &[u128; 4],
     my_bitboard: &[u16; 16],
     their_bitboard: &[u16; 16],
 ) {
-    let mut bitboard_copy = info.moves;
-    let direction_enum = corner_direction_to_enum(info.direction);
-
-    while bitboard_copy != 0 {
-        let index = bitboard_copy.trailing_zeros();
-
-        bitboard_copy &= !(1 << index);
-
-        // now we check if this move is still legal
-        let cache_move = CORNER_MOVES_DATA[info.direction as usize][index as usize];
-        let updated = update_cache_corner_move(
-            cache_move,
-            direction_enum,
-            coord,
-            player,
-            my_remaining,
-            my_bitboard,
-            their_bitboard,
-            true,
-            false,
-        );
-
-        // it is illegal, so we remove it from the bitboard
-        if updated.is_none() {
-            info.moves &= !(1 << index);
-        }
+    let d = info.direction as usize;
+    info.moves &= avail[d];
+    if info.moves == 0 {
+        return;
     }
+    let w = forbidden_window(my_bitboard, their_bitboard, coord.x, coord.y);
+    info.moves = filter_by_window(info.moves, d, w);
 }
 
 pub fn update_move_cache(board: &mut BoardState, last_move: u32) {
     let mov = Move::unpack(last_move);
+    board.last_move[mov.player as usize] = last_move;
 
     update_hash(board, &mov);
 
@@ -496,27 +581,46 @@ pub fn update_move_cache(board: &mut BoardState, last_move: u32) {
 
     board.skip_turn();
 
+    // Since this side's cache was last validated, the board changed by: its own last
+    // placement (tiles + adjacency, so grow by 1) and the opponent's last placement (tiles).
+    let (me, them) = match board.player {
+        Player::White => (0usize, 1usize),
+        Player::Black => (1, 0),
+    };
+    let own_region = move_region(board.last_move[me], 1);
+    let opp_region = move_region(board.last_move[them], 0);
+
     if board.player == Player::White {
+        let avail = available_masks(board.player_a_remaining);
         for (coord, info) in board.player_a_corner_moves_info.iter_mut() {
-            update_corner_moves_info(
-                Player::White,
-                info,
-                coord,
-                board.player_a_remaining,
-                &board.player_a_bit_board,
-                &board.player_b_bit_board,
-            );
+            info.moves &= avail[info.direction as usize];
+            if info.moves != 0
+                && (window_hits(coord, &own_region) || window_hits(coord, &opp_region))
+            {
+                update_corner_moves_info(
+                    info,
+                    coord,
+                    &avail,
+                    &board.player_a_bit_board,
+                    &board.player_b_bit_board,
+                );
+            }
         }
     } else {
+        let avail = available_masks(board.player_b_remaining);
         for (coord, info) in board.player_b_corner_moves_info.iter_mut() {
-            update_corner_moves_info(
-                Player::Black,
-                info,
-                coord,
-                board.player_b_remaining,
-                &board.player_b_bit_board,
-                &board.player_a_bit_board,
-            );
+            info.moves &= avail[info.direction as usize];
+            if info.moves != 0
+                && (window_hits(coord, &own_region) || window_hits(coord, &opp_region))
+            {
+                update_corner_moves_info(
+                    info,
+                    coord,
+                    &avail,
+                    &board.player_b_bit_board,
+                    &board.player_a_bit_board,
+                );
+            }
         }
     }
 }
@@ -541,14 +645,8 @@ pub fn update_move_cache_from_null_move(board: &mut BoardState) {
         &mut board.player_b_corner_moves_info
     };
 
+    let avail = available_masks(my_remaining);
     for (coord, info) in my_corner_moves_info.iter_mut() {
-        update_corner_moves_info(
-            board.player,
-            info,
-            coord,
-            my_remaining,
-            my_bitboard,
-            their_bitboard,
-        );
+        update_corner_moves_info(info, coord, &avail, my_bitboard, their_bitboard);
     }
 }
