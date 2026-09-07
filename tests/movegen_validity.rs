@@ -4,7 +4,6 @@ use blok_rs::board::Score;
 use blok_rs::board::StartPosition;
 use blok_rs::movegen;
 
-
 #[test]
 pub fn root_node_has_all_moves() {
     let mut game = BoardState::new(StartPosition::Corner);

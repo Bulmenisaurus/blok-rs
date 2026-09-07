@@ -15,6 +15,12 @@ rayon = "1.11.0"
 skillratings = "0.27.1"
 itertools = "0.14.0"
 
+[features]
+# search_test modes (exactly one; default is until-end)
+until-end = []
+nodes-1m = []
+nodes-10k = []
+
 [profile.release]
 codegen-units = 1
 lto = "fat"

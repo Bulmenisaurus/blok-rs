@@ -1,4 +1,8 @@
 use blok_rs::board::BoardState;
+#[cfg(any(
+    feature = "until-end",
+    not(any(feature = "nodes-1m", feature = "nodes-10k"))
+))]
 use blok_rs::board::GameResult;
 use blok_rs::board::StartPosition;
 use blok_rs::minimax;
@@ -21,15 +25,30 @@ pub fn main() {
     }
 
     println!("Opening moves: {:?}", opening_moves);
+    run_search(&mut board);
+}
+
+/// Constant time per move until the game ends (samply).
+#[cfg(any(
+    feature = "until-end",
+    not(any(feature = "nodes-1m", feature = "nodes-10k"))
+))]
+fn run_search(board: &mut BoardState) {
     while board.game_result() == GameResult::InProgress {
-        // Option 1: search nodes (for perf)
-        // board.do_move(minimax::search_nodes(&board, 5_000));
-
-        // Option 2: search (for benchmarking)
-        board.do_move(minimax::search(&board, 2_000));
+        board.do_move(minimax::search(board, 2_000));
     }
+}
 
-    // let best_move = minimax::search(&board, 1_000_000);
+/// Single search, 1M nodes (`time`).
+#[cfg(feature = "nodes-1m")]
+fn run_search(board: &mut BoardState) {
+    let best_move = minimax::search_nodes(board, 1_000_000);
+    println!("Best move: {best_move}");
+}
 
-    // println!("Best move: {}", best_move);
+/// Single search, 10k nodes (hyperfine).
+#[cfg(feature = "nodes-10k")]
+fn run_search(board: &mut BoardState) {
+    let best_move = minimax::search_nodes(board, 10_000);
+    println!("Best move: {best_move}");
 }
