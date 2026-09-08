@@ -7,6 +7,13 @@ use std::env;
 
 const THINK_DURATION_MS: usize = 1000;
 
+fn think_ms() -> usize {
+    std::env::var("BLOK_MOVETIME_MS")
+        .ok()
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(THINK_DURATION_MS)
+}
+
 fn main() {
     // Read moves from command line argument
     let args: Vec<String> = env::args().collect();
@@ -34,6 +41,6 @@ fn main() {
 
     // Now think and print the best response move
 
-    let best_move = minimax::search(&board, THINK_DURATION_MS);
+    let best_move = minimax::search(&board, think_ms());
     println!("{}", best_move);
 }

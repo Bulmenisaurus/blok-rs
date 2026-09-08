@@ -252,8 +252,8 @@ fn llr_logistic(elo0: f64, elo1: f64, results: &[f64; 5]) -> f64 {
     n * llr
 }
 
-fn outcome_for(result: GameResult, engine1_is_white: bool) -> Outcome {
-    match (result, engine1_is_white) {
+fn outcome_for(result: GameResult, scored_is_white: bool) -> Outcome {
+    match (result, scored_is_white) {
         (GameResult::Win(Player::White), true) | (GameResult::Win(Player::Black), false) => {
             Outcome::Win
         }
@@ -269,22 +269,25 @@ fn main() {
     let args: Vec<String> = std::env::args().collect();
     if args.len() < 2 || args.len() > 5 {
         eprintln!(
-            "Usage: {} <gain|nonregr|baseline> [movetime_ms] [baseline_pairs] [opening_plies]",
+            "Usage: {} <gain|nonregr|baseline|probe> [movetime_ms] [pairs] [opening_plies]",
             args[0]
         );
         std::process::exit(1);
     }
 
     let mode = args[1].as_str();
-    let (elo_0, elo_1, baseline) = match mode {
-        "gain" => (0.0, 5.0, false),
-        "nonregr" => (-10.0, 0.0, false),
-        "baseline" => (0.0, 5.0, true),
+    let (elo_0, elo_1, stop_after_pairs) = match mode {
+        "gain" => (0.0, 5.0, None),
+        "nonregr" => (-10.0, 0.0, None),
+        "baseline" => (0.0, 5.0, Some(DEFAULT_BASELINE_PAIRS)),
+        "probe" => (0.0, 5.0, Some(DEFAULT_BASELINE_PAIRS)),
         _ => {
-            eprintln!("Invalid mode: {mode}. Use 'gain', 'nonregr', or 'baseline'");
+            eprintln!("Invalid mode: {mode}. Use 'gain', 'nonregr', 'baseline', or 'probe'");
             std::process::exit(1);
         }
     };
+    let probe = mode == "probe";
+    let baseline = mode == "baseline";
 
     let movetime_ms: usize = if args.len() >= 3 {
         args[2].parse().unwrap_or_else(|_| {
@@ -297,13 +300,13 @@ fn main() {
         DEFAULT_MOVETIME_MS
     };
 
-    let baseline_pairs: usize = if baseline && args.len() >= 4 {
+    let pair_limit: usize = if stop_after_pairs.is_some() && args.len() >= 4 {
         args[3].parse().unwrap_or_else(|_| {
-            eprintln!("Invalid baseline_pairs: {}", args[3]);
+            eprintln!("Invalid pairs: {}", args[3]);
             std::process::exit(1);
         })
     } else {
-        DEFAULT_BASELINE_PAIRS
+        stop_after_pairs.unwrap_or(DEFAULT_BASELINE_PAIRS)
     };
 
     let opening_plies: usize = if args.len() >= 5 {
@@ -320,20 +323,25 @@ fn main() {
 
     if baseline {
         println!(
-            "Self-play baseline: {engine2} vs itself, {baseline_pairs} pairs, oneshot TC, {opening_plies} opening plies (movetime arg={movetime_ms} unused)"
+            "Self-play baseline: {engine2} vs itself, {pair_limit} pairs, oneshot TC, {opening_plies} opening plies (movetime arg={movetime_ms} unused)"
         );
         println!("Ptnml bins: LL, LD, DD/WL, WD, WW. wl = same color won both games.");
+    } else if probe {
+        println!(
+            "Probe: candidate {engine2} vs baseline {engine1}, {pair_limit} pairs"
+        );
+        println!("Pentanomial WW/LL and the printed score are the candidate's.");
     } else {
-        println!("Starting comparison between {engine1} and {engine2}");
+        println!("Starting comparison between candidate {engine2} and baseline {engine1}");
         println!("oneshot engines (compiled TC); movetime arg={movetime_ms} is unused");
-        println!("SPRT elo bounds: {elo_0} - {elo_1} (pentanomial GSPRT, logistic Elo)");
+        println!("SPRT elo bounds: {elo_0} - {elo_1} (pentanomial GSPRT, logistic Elo of the candidate)");
     }
 
     let mut sprt = PentanomialSPRT::new(elo_0, elo_1);
 
     while {
-        if baseline {
-            sprt.n_pairs() < baseline_pairs
+        if stop_after_pairs.is_some() {
+            sprt.n_pairs() < pair_limit
         } else {
             sprt.result() == SPRTResult::NotSignificant
         }
@@ -348,12 +356,13 @@ fn main() {
                     || play_game(engine1, engine2, opening),
                     || play_game(engine2, engine1, opening),
                 );
-                pair_from_games(outcome_for(g1, true), outcome_for(g2, false))
+                // Score the candidate (engine2): black in g1, white in g2.
+                pair_from_games(outcome_for(g1, false), outcome_for(g2, true))
             })
             .collect();
 
         for pair in pairs {
-            if baseline && sprt.n_pairs() >= baseline_pairs {
+            if stop_after_pairs.is_some() && sprt.n_pairs() >= pair_limit {
                 break;
             }
             sprt.update(pair);
@@ -363,6 +372,8 @@ fn main() {
 
     if baseline {
         print_baseline_summary(&sprt);
+    } else if probe {
+        print_probe_summary(&sprt);
     } else {
         match sprt.result() {
             SPRTResult::SignificantNull => println!("Significant Null"),
@@ -370,6 +381,37 @@ fn main() {
             SPRTResult::NotSignificant => println!("Not Significant"),
         }
     }
+}
+
+fn print_probe_summary(sprt: &PentanomialSPRT) {
+    let n = sprt.n_pairs() as f64;
+    if n < 1.0 {
+        println!("probe: no pairs");
+        return;
+    }
+    let mu = sprt.score();
+    let mut var = 0.0;
+    for i in 0..5 {
+        let x = i as f64 / 4.0;
+        var += sprt.counts[i] * (x - mu).powi(2);
+    }
+    var /= n;
+    let se = (var / n).sqrt();
+    let elo = |s: f64| {
+        let s = s.clamp(1e-9, 1.0 - 1e-9);
+        400.0 * (s / (1.0 - s)).log10()
+    };
+    let lo = elo((mu - 1.96 * se).clamp(1e-9, 1.0 - 1e-9));
+    let hi = elo((mu + 1.96 * se).clamp(1e-9, 1.0 - 1e-9));
+    println!();
+    println!(
+        "Probe summary: {} pairs, score {:.1}%, Elo {:.0} [{:.0}, {:.0}]",
+        sprt.n_pairs(),
+        100.0 * mu,
+        elo(mu),
+        lo,
+        hi
+    );
 }
 
 fn print_baseline_summary(sprt: &PentanomialSPRT) {
@@ -491,6 +533,17 @@ fn generate_opening(plies: usize) -> Vec<u32> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn pair_scores_candidate_as_engine2() {
+        // g1: baseline white, candidate black. Black wins → candidate win.
+        let g1 = GameResult::Win(Player::Black);
+        // g2: candidate white, baseline black. White wins → candidate win.
+        let g2 = GameResult::Win(Player::White);
+        let pair = pair_from_games(outcome_for(g1, false), outcome_for(g2, true));
+        assert_eq!(pair.half_points, 4);
+        assert!(!pair.wl);
+    }
 
     #[test]
     fn pair_bins() {
