@@ -14,4 +14,17 @@ This is a rust implementation of a minimax blokus engine in rust.
 
 ## How to play?
 
-The simplest way to play against it is to run the client locally (`cargo run --bin blok-rs --release`)
+The simplest way to play against it is to run the client locally (`cargo run --bin blok-rs --release`). Then to go https://bulmenisaurus.github.io/blok and connect with the `Local` checkbox. On placing a move, you should be able to see thinking traces in the console.
+
+Example:
+
+```
+Received: {"type":"findMove","move":18840}
+Client message: FindMove { move: Some(18840) }
+depth 1 bestmove 80832 score 174 nodes 421
+depth 2 bestmove 80832 score -775 nodes 2348
+depth 3 bestmove 80832 score 283 nodes 2852
+depth 4 bestmove 80832 score -608 nodes 6198
+depth 5 bestmove 84922 score 141 nodes 34393
+depth 6 bestmove 80952 score -589 nodes 114998
+```
