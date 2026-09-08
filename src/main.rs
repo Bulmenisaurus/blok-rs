@@ -106,13 +106,16 @@ async fn main() {
     let listener = TcpListener::bind(addr).await.expect("Failed to bind");
     println!("WebSocket server listening on ws://{}", addr);
 
-    while let Ok((stream, _)) = listener.accept().await {
-        let ws_stream = accept_async(stream)
-            .await
-            .expect("Failed to accept WebSocket");
-
+    while let Ok((stream, peer)) = listener.accept().await {
+        // Cursor/browser port probes and plain HTTP hits close before the
+        // WebSocket upgrade finishes. That must not kill the accept loop.
         tokio::spawn(async move {
-            handle_websocket(ws_stream).await;
+            match accept_async(stream).await {
+                Ok(ws_stream) => handle_websocket(ws_stream).await,
+                Err(e) => {
+                    eprintln!("Ignoring non-WebSocket connection from {peer}: {e}");
+                }
+            }
         });
     }
 }
