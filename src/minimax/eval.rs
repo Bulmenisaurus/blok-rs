@@ -3,6 +3,11 @@ use crate::board::{BoardState, GameResult, Player};
 /// End of game score, if winning +max, if losing -max
 pub const SCORE_MAX: i32 = 999_999;
 
+/// Side-to-move bonus. Odd/even search scores swing ~700 without this;
+/// half of that puts even and odd depths on a comparable scale so RFP
+/// and aspiration can use sane margins.
+const TEMPO: i32 = 350;
+
 pub fn eval(state: &BoardState) -> i32 {
     match state.game_result() {
         GameResult::Win(p) => {
@@ -24,7 +29,7 @@ fn static_eval(state: &BoardState) -> i32 {
         Player::Black => -1,
     };
 
-    person_to_move * (white_eval(state) - black_eval(state))
+    person_to_move * (white_eval(state) - black_eval(state)) + TEMPO
 }
 
 fn white_eval(state: &BoardState) -> i32 {
